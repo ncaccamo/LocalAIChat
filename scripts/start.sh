@@ -2,9 +2,18 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# First run: seed env files from templates.
-[[ -f .env ]] || { cp .env.example .env; \
-  echo "Created .env from template - review it (GPU GIDs, model filenames)."; }
+# First run: seed env files from templates. (scripts/setup.sh does a fuller
+# job — host prereq checks + build; this keeps start.sh usable on its own.)
+if [[ ! -f .env ]]; then
+  rgid=$(getent group render | cut -d: -f3 || true); rgid=${rgid:-992}
+  vgid=$(getent group video  | cut -d: -f3 || true); vgid=${vgid:-44}
+  sed -e "s/^HOST_UID=.*/HOST_UID=$(id -u)/" \
+      -e "s/^HOST_GID=.*/HOST_GID=$(id -g)/" \
+      -e "s/^VIDEO_GID=.*/VIDEO_GID=$vgid/" \
+      -e "s/^RENDER_GID=.*/RENDER_GID=$rgid/" \
+      .env.example > .env
+  echo "Created .env (UID:GID $(id -u):$(id -g), video=$vgid render=$rgid) - check model filenames."
+fi
 [[ -f backend.env ]] || { cp backend.env.example backend.env; \
   echo "Created backend.env from template - review it (mode / backend)."; }
 
@@ -60,9 +69,15 @@ docker network inspect ai-net >/dev/null 2>&1 || docker network create ai-net
 if [[ "$BACKEND_MODE" == "local" ]] && docker ps --format '{{.Names}}' | grep -q '^booktranslator-'; then
   echo "WARNING: BookTranslator containers appear to be running."
   echo "This GPU is not sized for both projects at once."
-  read -p "Continue anyway? [y/N] " -n 1 -r
-  echo
-  [[ $REPLY =~ ^[Yy]$ ]] || exit 1
+  if [[ "${ASSUME_YES:-}" == "1" ]]; then
+    echo "(ASSUME_YES=1 — continuing)"
+  elif [[ -t 0 ]]; then
+    read -p "Continue anyway? [y/N] " -n 1 -r
+    echo
+    [[ $REPLY =~ ^[Yy]$ ]] || exit 1
+  else
+    echo "(non-interactive — continuing; set ASSUME_YES=1 to silence)"
+  fi
 fi
 
 # Tear down the model-server if we're going remote (compose up --no-deps

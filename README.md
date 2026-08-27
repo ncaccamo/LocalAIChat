@@ -13,28 +13,33 @@ seen the other.
 
 ## Quick start
 
-Prereqs: Ubuntu 24.04, kernel ≥ 6.12, Docker, an AMD GPU set up — see
-**`HOST_PREREQUISITES.md`** (standalone, no dependency on BookTranslator's
-copy).
+**1. Host prerequisites** — Ubuntu 24.04, kernel ≥ 6.12, AMD GPU driver,
+Docker. Work through **`docs/HOST_PREREQUISITES.md`** (standalone, no
+dependency on BookTranslator's copy).
+
+**2. Setup** — one script: verifies the host, writes `.env` with your
+machine's real UID/GID and GPU group IDs, builds the image, brings the
+stack up.
 
 ```bash
-cp .env.example .env              # host UID/GID, GPU group IDs, model filenames
-cp backend.env.example backend.env   # defaults: local / vulkan
-# start.sh seeds both of the above if you skip this step
-
-docker compose build             # first time only (~20-30 min; layer-cached
-                                 # from BookTranslator's image if present)
-bash scripts/start.sh
-docker compose logs -f model-server   # watch first-run model download (~21 GB)
-
+bash scripts/setup.sh
 # Open WebUI: http://localhost:3000 — create an account, pick a model
-bash scripts/stop.sh             # frees the GPU
+```
+
+**3. Everyday use:**
+
+```bash
+bash scripts/start.sh                  # bring it up
+docker compose logs -f model-server    # watch model download / load
+bash scripts/stop.sh                   # frees the GPU
 ```
 
 Models (`gpt-oss-20b-MXFP4` chat, `Qwen2.5-Coder-14B-Instruct-Q4_K_M`
-code) download into `~/llm_models` on first start if absent. They're
-placeholder picks — change `CHAT_MODEL_FILE` / `CODE_MODEL_FILE` in `.env`
-(and the URLs in `docker/entrypoint.sh`) to use others.
+code) download into `~/llm_models` on first chat if absent (~21 GB).
+They're placeholder picks — change `CHAT_MODEL_FILE` / `CODE_MODEL_FILE`
+in `.env` (and the URLs in `docker/entrypoint.sh`) to use others.
+`setup.sh` and `start.sh` both seed `.env` / `backend.env` from the
+`*.example` templates if missing.
 
 ## How it works
 
@@ -86,7 +91,7 @@ it never touches the product-specific tail below the markers.
 | `README.md` | this — the front door |
 | `docs/STATUS.md` | current state, open items, decisions worth not re-litigating |
 | `docs/design-backend-selection.md` | `backend.env` local/remote design + Windows remote setup |
-| `HOST_PREREQUISITES.md` | bare-metal host setup (standalone) |
+| `docs/HOST_PREREQUISITES.md` | bare-metal host setup (standalone) — do this first |
 | `CLAUDE.md` | orientation + hard invariants for AI coding agents |
 
 Session history: `git log` (HANDOFF.md was retired 2026-08-27).

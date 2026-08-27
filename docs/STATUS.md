@@ -28,6 +28,11 @@ re-litigating. Session-by-session narrative lives in `git log`.
   (byte-identical to `BackendBuildstage/Dockerfile.buildstage`) + a
   product tail that installs llama-swap. Buildstage layers cache-hit
   from BookTranslator's image.
+- **Setup:** `scripts/setup.sh` (one-time) verifies host prereqs, detects
+  the host's real render/video GIDs → `.env`, creates `ai-net`, builds,
+  and brings up. It does not install system packages — that's the manual
+  `docs/HOST_PREREQUISITES.md` step. `scripts/start.sh` is the per-run
+  bring-up.
 
 ## Open items (roughly prioritized)
 

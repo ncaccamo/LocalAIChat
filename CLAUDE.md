@@ -44,8 +44,12 @@ AMD RX 9070 XT (RDNA4, gfx1201, 16 GB VRAM), Ryzen 7 5700X3D, Ubuntu
 - `entrypoint.sh` is `COPY`'d into the image (not mounted): changing it
   needs `docker compose build`. Switching `vulkan` ↔ `rocm7` afterward is
   `stop.sh`/`start.sh` only, no rebuild.
-- `HOST_PREREQUISITES.md` is a full standalone copy, not a pointer to
+- `docs/HOST_PREREQUISITES.md` is a full standalone copy, not a pointer to
   BookTranslator's — keep it that way.
+- `scripts/setup.sh` = one-time (verify host prereqs, detect GPU GIDs →
+  `.env`, build, up). `scripts/start.sh` = per-run bring-up (owns the
+  `backend.env` mode logic). `setup.sh` calls `start.sh` at the end.
+  Neither installs system packages — that's `docs/HOST_PREREQUISITES.md`.
 - Open WebUI pinned to `v0.11.0`, not `latest`.
 
 ## Where to look
