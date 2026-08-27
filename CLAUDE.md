@@ -55,7 +55,10 @@ AMD RX 9070 XT (RDNA4, gfx1201, 16 GB VRAM), Ryzen 7 5700X3D, Ubuntu
 ## Where to look
 - `docs/STATUS.md` — current state, prioritized open items, decisions
   worth not re-litigating. **Start here.**
-- `README.md` — front door: quick start, how it works, doc index.
-- `docs/design-backend-selection.md` — `backend.env` local/remote design,
-  the `LLAMA_BACKEND`→binary mapping, and the Windows remote-side setup.
-- Session history: `git log` (HANDOFF.md was retired 2026-08-27).
+- `README.md` — the user manual: install, use, configure.
+- `docs/remote-gpu.md` — `backend.env`, the `LLAMA_BACKEND`→binary
+  mapping, remote-GPU mode + remote-machine setup.
+- `docs/HOST_PREREQUISITES.md` — bare-metal host setup.
+- Session history: `git log` (HANDOFF.md retired, and
+  docs/design-backend-selection.md folded into README + docs/remote-gpu.md,
+  2026-08-27).

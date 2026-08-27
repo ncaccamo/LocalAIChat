@@ -14,16 +14,15 @@ re-litigating. Session-by-session narrative lives in `git log`.
   OpenAI-compatible endpoint; its `/v1/models` lists `chat` + `code`.
   Picking one in the Open WebUI dropdown stops the running `llama-server`
   and starts the other — one model resident at a time (16 GB card).
-- **Models:** `gpt-oss-20b-MXFP4` (chat) and
-  `Qwen2.5-Coder-14B-Instruct-Q4_K_M` (code), in `~/llm_models`
+- **Models:** `gpt-oss-20b-MXFP4` (chat, ~12 GB) and
+  `Qwen2.5-Coder-14B-Instruct-Q5_K_M` (code, ~10.5 GB), in `~/llm_models`
   (bind-mounted), downloaded on first start if absent. Confirmed picks
-  for a 16 GB card; each loads alone with room for a large context. Swap
-  via `.env` (`CHAT_MODEL_FILE` / `CODE_MODEL_FILE` + URLs in
-  `docker/entrypoint.sh`) for others.
+  for a 16 GB card; each loads alone with room for a large context
+  (coder at `CODE_CTX=16384`). Swap via `.env` (`CHAT_MODEL_FILE` /
+  `CODE_MODEL_FILE` + URLs in `docker/entrypoint.sh`) for others.
 - **Backend selection:** `backend.env` switches local
   (`vulkan` | `rocm7` | `rocm714`) vs. remote (LAN llama-server + bearer
-  token). All three states verified. See
-  `docs/design-backend-selection.md`.
+  token). All three states verified. See `docs/remote-gpu.md`.
 - **Container:** `restart: "no"`, runs as the host UID, comes up and
   starts llama-swap (local mode) or isn't created at all (remote mode).
 - **Image:** `docker/Dockerfile` = the synced `BUILDSTAGE` block
@@ -41,11 +40,23 @@ re-litigating. Session-by-session narrative lives in `git log`.
 1. **Remote mode against real Windows hardware** — only verified against a
    local stand-in `llama-server --api-key` (correct URL, bearer header, no
    local process, no `model-server` container). Windows-side steps:
-   `docs/design-backend-selection.md` → Remote setup.
+   `docs/remote-gpu.md` → "Setting up the remote machine".
 2. **`rocm714`** — accepted as a config value but the binary isn't built
    (parked upstream: the preview wheel ships no `hip-lang-config.cmake`).
    Selecting it fails fast. Build it in `BackendBuildstage`, then re-sync
    the buildstage here.
+3. **Web search for the chat model** — wanted, **after the coder-model
+   swap**. Open WebUI's built-in web search: retrieval, not model
+   tool-calling; **opt-in per message via the UI toggle** (do NOT enable
+   the always-on global setting) — this is the required user control,
+   given it's the first feature that sends anything off the box (query
+   text + page fetches leave via the `open-webui` container; the "no
+   cloud calls" line gets an asterisk). Plan: self-hosted **SearXNG** on
+   `ai-net` (no API key, as private as search gets), built-in CPU
+   embedder (`all-MiniLM-L6-v2`, ~90 MB, downloads in-container on first
+   use), bump `CHAT_CTX` 8192 → ~16384 and re-check VRAM, configure in
+   Admin Settings then pin working values into `docker-compose.yml`
+   (env seeds first launch only; `webui.db` wins after).
 
 ## Decisions worth not re-litigating
 

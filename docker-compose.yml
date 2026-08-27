@@ -46,7 +46,7 @@ services:
       - HIP_VISIBLE_DEVICES=0
       - ROCR_VISIBLE_DEVICES=0
       - CHAT_MODEL_PATH=/models/${CHAT_MODEL_FILE:-gpt-oss-20b.gguf}
-      - CODE_MODEL_PATH=/models/${CODE_MODEL_FILE:-qwen2.5-coder-14b.gguf}
+      - CODE_MODEL_PATH=/models/${CODE_MODEL_FILE:-Qwen2.5-Coder-14B-Instruct-Q5_K_M.gguf}
     devices:
       - /dev/kfd
       - /dev/dri

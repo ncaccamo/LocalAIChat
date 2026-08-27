@@ -49,17 +49,19 @@ LISTEN_PORT="${LISTEN_PORT:-11500}"
 MODELS_DIR="${MODELS_DIR:-/models}"
 
 CHAT_MODEL_PATH="${CHAT_MODEL_PATH:-$MODELS_DIR/gpt-oss-20b.gguf}"
-CODE_MODEL_PATH="${CODE_MODEL_PATH:-$MODELS_DIR/qwen2.5-coder-14b.gguf}"
+CODE_MODEL_PATH="${CODE_MODEL_PATH:-$MODELS_DIR/Qwen2.5-Coder-14B-Instruct-Q5_K_M.gguf}"
 
 # Context sizes per model -- override via compose environment if needed.
+# CODE_CTX 16384 + the Q5_K_M coder (~10.5 GB) + compute buffers fits a
+# 16 GB card. Going to Q6_K (~12 GB) means dropping CODE_CTX to ~8192.
 CHAT_CTX="${CHAT_CTX:-8192}"
 CODE_CTX="${CODE_CTX:-16384}"
 
-# HF download URLs used only when the file is absent. Placeholders per
-# README ("confirm before first real run"); change the *_MODEL_FILE in
-# .env plus these URLs together if you switch models.
+# HF download URLs, used only when the configured file is absent. If you
+# switch models, change the *_MODEL_FILE in .env and the matching URL here
+# together.
 CHAT_MODEL_URL="${CHAT_MODEL_URL:-https://huggingface.co/ggml-org/gpt-oss-20b-GGUF/resolve/main/gpt-oss-20b-MXFP4.gguf}"
-CODE_MODEL_URL="${CODE_MODEL_URL:-https://huggingface.co/bartowski/Qwen2.5-Coder-14B-Instruct-GGUF/resolve/main/Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf}"
+CODE_MODEL_URL="${CODE_MODEL_URL:-https://huggingface.co/bartowski/Qwen2.5-Coder-14B-Instruct-GGUF/resolve/main/Qwen2.5-Coder-14B-Instruct-Q5_K_M.gguf}"
 
 # ---------------------------------------------------------------------------
 # 1. Backend binary selection

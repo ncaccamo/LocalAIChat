@@ -11,76 +11,113 @@ Tuned for an AMD RX 9070 XT (RDNA4, 16 GB) + Ryzen 7 5700X3D on Ubuntu
 setup level** — either can be deployed alone on a machine that has never
 seen the other.
 
-## Quick start
+---
 
-**1. Host prerequisites** — Ubuntu 24.04, kernel ≥ 6.12, AMD GPU driver,
-Docker. Work through **`docs/HOST_PREREQUISITES.md`** (standalone, no
-dependency on BookTranslator's copy).
+## Install
 
-**2. Setup** — one script: verifies the host, writes `.env` with your
-machine's real UID/GID and GPU group IDs, builds the image, brings the
-stack up.
+### 1. Host prerequisites
+
+Ubuntu 24.04, kernel ≥ 6.12, AMD GPU driver, Docker. Work through
+**[`docs/HOST_PREREQUISITES.md`](docs/HOST_PREREQUISITES.md)** once — it's
+`sudo apt` / kernel / BIOS steps on bare metal. Standalone, no dependency
+on BookTranslator's copy.
+
+### 2. Setup
+
+One script — verifies the host is ready, writes `.env` with this machine's
+real UID/GID and GPU group IDs, creates the `ai-net` docker network,
+builds the image, brings the stack up:
 
 ```bash
 bash scripts/setup.sh
-# Open WebUI: http://localhost:3000 — create an account, pick a model
 ```
 
-**3. Everyday use:**
+First build compiles llama.cpp twice (ROCm + Vulkan): 20–30 min, much
+faster if BookTranslator's image is already built (shared layers).
+
+---
+
+## Use
+
+Open **http://localhost:3000**, create an account (local, stays on the
+box), and pick a model from the dropdown:
+
+- **`gpt-oss-20b`** — general chat / reasoning
+- **`qwen2.5-coder-14b`** — coding
+
+Switching models in the dropdown unloads the running one and loads the
+other — only one is in VRAM at a time (the 16 GB card can't hold both).
+First use of a model downloads it into `~/llm_models` (~23 GB total) and
+loads it, which takes a minute or two; watch with
+`docker compose logs -f model-server`.
 
 ```bash
-bash scripts/start.sh                  # bring it up
-docker compose logs -f model-server    # watch model download / load
-bash scripts/stop.sh                   # frees the GPU
+bash scripts/start.sh    # bring the stack up
+bash scripts/stop.sh     # stop it, free the GPU
 ```
 
-Models (`gpt-oss-20b-MXFP4` chat, `Qwen2.5-Coder-14B-Instruct-Q4_K_M`
-code) download into `~/llm_models` on first chat if absent (~21 GB).
-They're placeholder picks — change `CHAT_MODEL_FILE` / `CODE_MODEL_FILE`
-in `.env` (and the URLs in `docker/entrypoint.sh`) to use others.
-`setup.sh` and `start.sh` both seed `.env` / `backend.env` from the
-`*.example` templates if missing.
+Everything is `restart: "no"` — nothing auto-starts; `start.sh` /
+`stop.sh` are the only entry points. Open WebUI persists accounts, chats,
+and uploaded files under `config/open-webui/` (gitignored) — survives
+`stop`/`start` and image rebuilds.
+
+---
+
+## Configure
+
+### Models
+
+`.env` (seeded from `.env.example` on first run):
+
+| Var | Default | Notes |
+|---|---|---|
+| `CHAT_MODEL_FILE` | `gpt-oss-20b.gguf` | file in `~/llm_models` |
+| `CODE_MODEL_FILE` | `Qwen2.5-Coder-14B-Instruct-Q5_K_M.gguf` | " |
+
+To use different models, set the filename here **and** the matching
+download URL in `docker/entrypoint.sh`, then `stop.sh` / `start.sh`.
+Per-model context size is `CHAT_CTX` / `CODE_CTX` (compose environment).
+
+### Backend
+
+`backend.env` (seeded from `backend.env.example`) picks where inference
+runs:
+
+- **`BACKEND_MODE=local`** + `LLAMA_BACKEND=vulkan | rocm7` — llama-swap
+  runs in the container. Switching `vulkan` ↔ `rocm7` is `stop.sh` /
+  `start.sh`, **no rebuild** (both binaries are in the image). `rocm714`
+  is a valid value but parked upstream — it fails fast.
+- **`BACKEND_MODE=remote`** — points Open WebUI at a `llama-server` on
+  another LAN machine (bearer-token auth); nothing runs locally, no model
+  hot-swap. The "run `llama-server.exe` on the Windows gaming PC" mode.
+
+Full reference incl. the remote-machine setup:
+**[`docs/remote-gpu.md`](docs/remote-gpu.md)**.
+
+---
 
 ## How it works
 
-- `model-server` runs **one llama-swap process on `:11500`**, an
-  OpenAI-compatible endpoint. Its `/v1/models` lists `chat` and `code`;
-  both show in the Open WebUI dropdown.
-- Picking a model loads it; picking the other one **unloads the first**.
-  Only one model is in VRAM at a time — the 16 GB card can't hold both.
-- Open WebUI persists accounts, chats, and RAG data to
-  `config/open-webui/` (bind-mounted, gitignored) — survives
-  `stop.sh`/`start.sh` and rebuilds.
-- Every service is `restart: "no"`. Nothing auto-starts; `scripts/start.sh`
-  / `scripts/stop.sh` are the only entry points.
-
-## Backends
-
-`backend.env` selects where inference runs:
-
-- **`BACKEND_MODE=local`** + `LLAMA_BACKEND=vulkan | rocm7 | rocm714` —
-  llama-swap runs in the container. Switching `vulkan` ↔ `rocm7` is
-  `stop.sh`/`start.sh`, **no rebuild** (both binaries are in the image).
-  `rocm714` is parked upstream and fails fast.
-- **`BACKEND_MODE=remote`** — points Open WebUI straight at a
-  `llama-server` on another LAN machine (bearer-token auth); no local
-  server starts and `model-server` isn't created. This is the "run
-  `llama-server.exe` on the Windows gaming PC" mode.
-
-Details, including the Windows-side setup: **`docs/design-backend-selection.md`**.
+`model-server` runs one **llama-swap** process on `:11500` — an
+OpenAI-compatible endpoint whose `/v1/models` advertises `chat` and
+`code`. Selecting a model in Open WebUI routes through llama-swap, which
+starts that model's `llama-server` (and stops the previous one).
+`docker/entrypoint.sh` resolves the backend binary + model files, writes
+the llama-swap config, and `exec`s it.
 
 ## Relationship to BookTranslator
 
 Siblings, not a client/dependency pair. **Not shared:** base image,
-Dockerfile, compose, containers, code, host-prereqs doc. **Shared, safely:**
-the `ai-net` docker network name (a convention — `start.sh` creates it
-idempotently), the port-numbering convention (this project uses `11500`;
-`11501` is reserved, unused), and `~/llm_models` (a directory mount, not a
-repo dependency). Not meant to run at the same time — one GPU.
+Dockerfile, compose, containers, code, host-prereqs doc. **Shared,
+safely:** the `ai-net` docker network name (a convention — `start.sh`
+creates it idempotently), the port-numbering convention (this project
+uses `11500`; `11501` is reserved, unused), and `~/llm_models` (a
+directory mount, not a repo dependency). Not meant to run at the same
+time — one GPU.
 
 The ROCm/Vulkan build stage in `docker/Dockerfile` is a synced copy of
-`BackendBuildstage/Dockerfile.buildstage`, kept between `# BUILDSTAGE
-START` / `# END` markers. Re-sync with
+`BackendBuildstage/Dockerfile.buildstage`, kept between
+`# BUILDSTAGE START` / `# END` markers. Re-sync with
 `BackendBuildstage/sync_to_product.sh docker/Dockerfile` when it changes —
 it never touches the product-specific tail below the markers.
 
@@ -88,10 +125,10 @@ it never touches the product-specific tail below the markers.
 
 | File | For |
 |---|---|
-| `README.md` | this — the front door |
-| `docs/STATUS.md` | current state, open items, decisions worth not re-litigating |
-| `docs/design-backend-selection.md` | `backend.env` local/remote design + Windows remote setup |
-| `docs/HOST_PREREQUISITES.md` | bare-metal host setup (standalone) — do this first |
+| `README.md` | this — install, use, configure |
+| [`docs/HOST_PREREQUISITES.md`](docs/HOST_PREREQUISITES.md) | bare-metal host setup — do this first |
+| [`docs/remote-gpu.md`](docs/remote-gpu.md) | `backend.env`, local backend switching, remote-GPU mode |
+| [`docs/STATUS.md`](docs/STATUS.md) | current state, open items, decisions worth not re-litigating |
 | `CLAUDE.md` | orientation + hard invariants for AI coding agents |
 
 Session history: `git log` (HANDOFF.md was retired 2026-08-27).
