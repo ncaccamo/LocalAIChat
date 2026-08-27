@@ -1,0 +1,74 @@
+# LocalAIChat — on-demand local chat / model serving
+#
+# Fully self-contained: docker/Dockerfile builds its own ROCm+Vulkan
+# llama.cpp stage (synced from BackendBuildstage), then adds llama-swap in
+# its product-specific tail. No external image dependency.
+#
+# Assumes: external network `ai-net` exists (scripts/start.sh creates it
+# idempotently if not — safe even if BookTranslator was never installed
+# on this machine).
+#
+# Deliberately restart: "no" on every service — started/stopped
+# explicitly, not run continuously. See README "Usage pattern".
+
+networks:
+  ai-net:
+    external: true
+
+services:
+  model-server:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile
+    image: localaichat-model-server:latest
+    container_name: localaichat-model-server
+    restart: "no"
+    # Run as the host user so any file the container writes into the
+    # shared models dir (first-run downloads) is owned by you, not root.
+    # GPU access is preserved via group_add (video/render) below.
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    networks:
+      - ai-net
+    ports:
+      - "11500:11500"   # OpenAI-compatible endpoint (llama-swap multiplexes chat + code)
+    volumes:
+      # Shared with BookTranslator by convention — a directory mount, not
+      # a repo/build dependency. A solo LocalAIChat box just creates it.
+      - ~/llm_models:/models
+    environment:
+      - LLAMA_BACKEND=${LLAMA_BACKEND:-vulkan}
+      # RDNA4 (RX 9070 XT, gfx1201) needs this override for ROCm/HIP.
+      - HSA_OVERRIDE_GFX_VERSION=12.0.1
+      - HIP_VISIBLE_DEVICES=0
+      - ROCR_VISIBLE_DEVICES=0
+      - CHAT_MODEL_PATH=/models/${CHAT_MODEL_FILE:-gpt-oss-20b.gguf}
+      - CODE_MODEL_PATH=/models/${CODE_MODEL_FILE:-qwen2.5-coder-14b.gguf}
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      # Numeric GIDs — the group *names* video/render do not resolve
+      # inside the container. Match your host: `getent group video render`.
+      - "${VIDEO_GID:-44}"
+      - "${RENDER_GID:-992}"
+    shm_size: "2gb"
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:v0.11.0
+    container_name: localaichat-webui
+    restart: "no"
+    networks:
+      - ai-net
+    ports:
+      - "3000:8080"
+    volumes:
+      - ./config/open-webui:/app/backend/data
+    environment:
+      # One endpoint — llama-swap's /v1/models advertises both "chat" and
+      # "code", so both appear in the Open WebUI model dropdown.
+      - OPENAI_API_BASE_URL=http://model-server:11500/v1
+      # llama-swap ignores the key, but Open WebUI requires a non-empty one.
+      - OPENAI_API_KEY=sk-local
+      - WEBUI_AUTH=${WEBUI_AUTH:-true}
+    depends_on:
+      - model-server
