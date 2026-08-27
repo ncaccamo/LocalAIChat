@@ -16,8 +16,10 @@ re-litigating. Session-by-session narrative lives in `git log`.
   and starts the other — one model resident at a time (16 GB card).
 - **Models:** `gpt-oss-20b-MXFP4` (chat) and
   `Qwen2.5-Coder-14B-Instruct-Q4_K_M` (code), in `~/llm_models`
-  (bind-mounted), downloaded on first start if absent. Still the
-  placeholder picks — swap freely via `.env`.
+  (bind-mounted), downloaded on first start if absent. Confirmed picks
+  for a 16 GB card; each loads alone with room for a large context. Swap
+  via `.env` (`CHAT_MODEL_FILE` / `CODE_MODEL_FILE` + URLs in
+  `docker/entrypoint.sh`) for others.
 - **Backend selection:** `backend.env` switches local
   (`vulkan` | `rocm7` | `rocm714`) vs. remote (LAN llama-server + bearer
   token). All three states verified. See
@@ -34,26 +36,16 @@ re-litigating. Session-by-session narrative lives in `git log`.
   `docs/HOST_PREREQUISITES.md` step. `scripts/start.sh` is the per-run
   bring-up.
 
-## Open items (roughly prioritized)
+## Open items
 
-1. **Confirm the models.** `gpt-oss-20b` / `qwen2.5-coder-14b` are
-   carried-over placeholders. Pick the real chat + coding models before
-   treating this as done.
-2. **Remote mode against real Windows hardware** — only verified against a
+1. **Remote mode against real Windows hardware** — only verified against a
    local stand-in `llama-server --api-key` (correct URL, bearer header, no
    local process, no `model-server` container). Windows-side steps:
    `docs/design-backend-selection.md` → Remote setup.
-3. **`rocm714`** — accepted as a config value but the binary isn't built
+2. **`rocm714`** — accepted as a config value but the binary isn't built
    (parked upstream: the preview wheel ships no `hip-lang-config.cmake`).
    Selecting it fails fast. Build it in `BackendBuildstage`, then re-sync
    the buildstage here.
-4. **Keep `backend.env` in sync with BookTranslator's.** Same schema,
-   duplicated by convention, not shared via any file. BookTranslator's
-   Step 3 landed separately; changes to either must be mirrored by hand.
-5. **Cold model load ~3.5 min** — `~/llm_models` is on a slow disk;
-   llama.cpp mmap-faults the whole file in. `llama-swap`
-   `healthCheckTimeout` is 300 s to cover it. Faster storage is the real
-   fix; not urgent.
 
 ## Decisions worth not re-litigating
 
@@ -72,6 +64,10 @@ re-litigating. Session-by-session narrative lives in `git log`.
   re-sync via `BackendBuildstage/sync_to_product.sh` when it changes.
 - **`~/llm_models` shared with BookTranslator** by directory convention
   only — not a repo/build dependency. A solo box just creates it.
+- **`backend.env` schema is duplicated in BookTranslator by convention**,
+  not shared via any file. Both currently match
+  (`BACKEND_MODE` / `LLAMA_BACKEND` / `REMOTE_HOST` / `REMOTE_PORT` /
+  `REMOTE_API_KEY`). If you change one, mirror the other by hand.
 
 ## Verified (2026-08-27, RX 9070 XT / gfx1201)
 

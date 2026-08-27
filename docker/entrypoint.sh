@@ -121,7 +121,8 @@ fetch_if_missing () {  # $1=path  $2=url  $3=label
     fi
     echo "[..] Downloading $label -> $path"
     echo "     $url"
-    wget --progress=bar:force:noscroll -O "$path.partial" "$url"
+    # -c resumes a half-finished .partial from a previous interrupted run.
+    wget -c --progress=bar:force:noscroll --tries=5 -O "$path.partial" "$url"
     mv "$path.partial" "$path"
     echo "[OK] $label downloaded"
 }
