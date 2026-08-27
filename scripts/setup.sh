@@ -58,13 +58,13 @@ if command -v docker >/dev/null 2>&1; then
   if docker info >/dev/null 2>&1; then
     ok "docker usable without sudo"
   else
-    bad "docker present but needs sudo — add \$USER to the 'docker' group, log out/in ($PREREQ section 5)"
+    bad "docker present but needs sudo — add \$USER to the 'docker' group, log out/in ($PREREQ section 6)"
   fi
 else
-  bad "docker not installed — see $PREREQ section 5"
+  bad "docker not installed — see $PREREQ section 6"
 fi
 docker compose version >/dev/null 2>&1 && ok "docker compose plugin" \
-  || bad "docker compose plugin missing — see $PREREQ section 5"
+  || bad "docker compose plugin missing — see $PREREQ section 6"
 
 if [ -d "$HOME/llm_models" ]; then
   ok "~/llm_models exists"

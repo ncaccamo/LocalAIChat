@@ -17,7 +17,9 @@ seen the other.
 
 ### 1. Host prerequisites
 
-Ubuntu 24.04, kernel ≥ 6.12, AMD GPU driver, Docker. Work through
+Ubuntu 24.04, kernel ≥ 6.12 (in-kernel `amdgpu` driver), the
+`render`/`video` groups, Docker. **No host ROCm / Vulkan / Mesa** — all in
+the image. Work through
 **[`docs/HOST_PREREQUISITES.md`](docs/HOST_PREREQUISITES.md)** once — it's
 `sudo apt` / kernel / BIOS steps on bare metal. Standalone, no dependency
 on BookTranslator's copy.
