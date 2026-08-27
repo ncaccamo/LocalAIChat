@@ -36,6 +36,10 @@ services:
       # a repo/build dependency. A solo LocalAIChat box just creates it.
       - ~/llm_models:/models
     environment:
+      # Backend selection comes from backend.env via scripts/start.sh.
+      # BACKEND_MODE=remote here is defense-in-depth: start.sh normally
+      # doesn't start this service at all in remote mode.
+      - BACKEND_MODE=${BACKEND_MODE:-local}
       - LLAMA_BACKEND=${LLAMA_BACKEND:-vulkan}
       # RDNA4 (RX 9070 XT, gfx1201) needs this override for ROCm/HIP.
       - HSA_OVERRIDE_GFX_VERSION=12.0.1
@@ -64,11 +68,15 @@ services:
     volumes:
       - ./config/open-webui:/app/backend/data
     environment:
-      # One endpoint — llama-swap's /v1/models advertises both "chat" and
-      # "code", so both appear in the Open WebUI model dropdown.
-      - OPENAI_API_BASE_URL=http://model-server:11500/v1
-      # llama-swap ignores the key, but Open WebUI requires a non-empty one.
-      - OPENAI_API_KEY=sk-local
+      # local mode: the local llama-swap endpoint (its /v1/models advertises
+      #   "chat" + "code", so both appear in the model dropdown).
+      # remote mode: scripts/start.sh sets OWUI_OPENAI_BASE_URL /
+      #   OWUI_OPENAI_KEY from backend.env's REMOTE_* and starts this
+      #   service with --no-deps (no model-server).
+      - OPENAI_API_BASE_URL=${OWUI_OPENAI_BASE_URL:-http://model-server:11500/v1}
+      # Open WebUI sends this as `Authorization: Bearer <key>`. llama-swap
+      # ignores it locally; a remote llama-server checks it against --api-key.
+      - OPENAI_API_KEY=${OWUI_OPENAI_KEY:-sk-local}
       - WEBUI_AUTH=${WEBUI_AUTH:-true}
     depends_on:
       - model-server
