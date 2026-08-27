@@ -93,11 +93,11 @@ RUN tesseract --list-langs && \
     ln -sf /usr/bin/gs /usr/local/bin/gs
 
 # [ROCM714] Preview venv install ONLY. The llama.cpp build against it is
-# skipped (wheel ships no hip-lang-config.cmake). See the parked
-# BUILDSTAGE-ROCM714 section at the end of this file, and
-# BookTranslator/docker/ROCM714_NOTES.md.
+# skipped (the wheel ships no hip-lang-config.cmake, so CMake HIP can't
+# configure). Full rationale + revisit/un-park checklist: ROCM714_NOTES.md
+# in the BackendBuildstage repo (the canonical home for this variant).
 # ---- ROCm 7.14 (PREVIEW, pip/wheel) - install kept for future use, the
-# llama.cpp BUILD against it is disabled. See docker/ROCM714_NOTES.md:
+# llama.cpp BUILD against it is disabled. See ROCM714_NOTES.md:
 # this wheel combination doesn't ship hip-lang-config.cmake, so it can't
 # currently compile new HIP source, only run pre-built ROCm workloads.
 RUN python3 -m venv /opt/rocm714-venv && \
