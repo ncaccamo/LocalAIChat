@@ -1,3 +1,80 @@
+# LocalAIChat — Handoff
+
+> This file is the LocalAIChat repo's handoff. Most of it below the first
+> `---` is a **verbatim copy of BookTranslator's HANDOFF** — kept here
+> only because the *Backend Selection & Remote GPU* design appendix at the
+> very bottom is the shared spec for LocalAIChat's next big task. The
+> BookTranslator session notes are not LocalAIChat's and should not be
+> edited here. LocalAIChat's own status is this top section.
+
+## LocalAIChat status — 2026-08-27 (Claude Code)
+
+**The skeleton is built, deployed, and verified end-to-end.** Full detail
+in `README.md` → "Build status". Summary:
+
+- `docker/Dockerfile` — the `BUILDSTAGE START/END` block is now a real,
+  byte-identical copy of `BackendBuildstage/Dockerfile.buildstage`
+  (ROCm 7.2.4 + Vulkan dual llama.cpp build). The old corrupted
+  truncated paste after the END marker was removed. A product-specific
+  tail (clearly fenced, "do not sync back") installs
+  [llama-swap](https://github.com/mostlygeek/llama-swap) v251, sets GPU
+  env, and wires `entrypoint.sh`.
+- `docker/entrypoint.sh` — was a stub. Now: resolves `LLAMA_BACKEND`
+  (`vulkan`|`rocm`) + its `LD_LIBRARY_PATH`, resolves each model file
+  (env path → glob in `/models` → download), writes
+  `/tmp/llama-swap.config.yaml`, `exec`s `llama-swap` on `:11500`. It
+  never starts a `llama-server` directly — llama-swap owns that and
+  hot-swaps one resident model on demand (the Open WebUI dropdown drives
+  it). This is a different lifecycle model than BookTranslator's
+  pipeline-owned servers, on purpose.
+- `docker-compose.yml` — carried over BookTranslator's hard-won GPU
+  fixes: `HSA_OVERRIDE_GFX_VERSION=12.0.1` (gfx1201 / RX 9070 XT),
+  numeric `video`/`render` GIDs (names don't resolve in-container),
+  `user:` host-UID mapping. Single bound port `11500`. Models mount is
+  `~/llm_models` (shared with BookTranslator by convention). `restart:
+  "no"` kept on both services. Open WebUI → the one llama-swap endpoint.
+- `.env` / `.env.example` — added `HOST_UID/GID`, `VIDEO_GID/RENDER_GID`,
+  `CHAT_MODEL_FILE` / `CODE_MODEL_FILE`. `scripts/start.sh` seeds `.env`
+  from the example on first run.
+- No in-repo `models/` dir — removed; `.gguf` files live only in
+  `~/llm_models` and are fetched on first start.
+
+**Verified on `nicholas-Ubuntu-AI` (RX 9070 XT, gfx1201):**
+
+- Build: every buildstage layer cache-hit from BookTranslator's image;
+  only the llama-swap tail compiled.
+- First run downloaded `gpt-oss-20b-MXFP4.gguf` (12.1 GB) +
+  `Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf` (9 GB) into `~/llm_models`.
+- Both models serve chat through Open WebUI (`:3000`). `chat` ~110–150
+  tok/s gen, `code` ~60 tok/s gen, on the Vulkan backend.
+- **Model swap works**: selecting the other model in the dropdown tears
+  down the running `llama-server` and starts the new one; VRAM stays
+  ~13 GB (one model resident), never doubles.
+- Conversations persist — Open WebUI SQLite DB at
+  `config/open-webui/webui.db` via bind mount; survives `stop`/`start`
+  and rebuilds; gitignored.
+
+**Bugs found + fixed during bring-up:**
+
+- Chat model URL had wrong case (`gpt-oss-20b-mxfp4.gguf` →
+  `gpt-oss-20b-MXFP4.gguf`) — 404'd the first download. Fixed in
+  `entrypoint.sh`.
+
+**Still open / not done:**
+
+- `LLAMA_BACKEND=rocm` is untested — only `vulkan` verified. The `rocm`
+  binaries are in the image; switching is a one-line `.env` change.
+- Cold model load is ~3.5 min (`~/llm_models` on a slow disk; llama.cpp
+  mmap-faults the whole file). `llama-swap` `healthCheckTimeout` is set
+  to 300 s to cover it. Faster storage is the real fix.
+- **Backend Selection & Remote GPU** (`backend.env` schema — the design
+  appendix at the bottom of this file): not started. That doc's
+  suggested order is BookTranslator-first, then port here. Note its §8
+  step 2 ("fill in LocalAIChat's Dockerfile TODO block") is already
+  done — the buildstage block is synced and real.
+
+---
+
 # BookTranslator — Handoff / Offramp Document
 
 ## SESSION 2 (2026-08-26, Claude Code) — read this first

@@ -35,7 +35,7 @@ CODE_CTX="${CODE_CTX:-16384}"
 # HF download URLs used only when the file is absent. Placeholders per
 # README ("confirm before first real run"); change the *_MODEL_FILE in
 # .env plus these URLs together if you switch models.
-CHAT_MODEL_URL="${CHAT_MODEL_URL:-https://huggingface.co/ggml-org/gpt-oss-20b-GGUF/resolve/main/gpt-oss-20b-mxfp4.gguf}"
+CHAT_MODEL_URL="${CHAT_MODEL_URL:-https://huggingface.co/ggml-org/gpt-oss-20b-GGUF/resolve/main/gpt-oss-20b-MXFP4.gguf}"
 CODE_MODEL_URL="${CODE_MODEL_URL:-https://huggingface.co/bartowski/Qwen2.5-Coder-14B-Instruct-GGUF/resolve/main/Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf}"
 
 # ---------------------------------------------------------------------------

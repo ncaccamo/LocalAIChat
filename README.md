@@ -29,9 +29,11 @@ not a client/dependency pair.
   file dependency — `scripts/start.sh` creates it idempotently if it
   doesn't already exist. A solo LocalAIChat deployment just creates it
   fresh and never notices BookTranslator doesn't exist on that machine.
-- Port-numbering convention (this project uses 11500/11501, distinct from
-  BookTranslator's 11434/11435) — purely for log/tooling legibility if
-  both happen to be installed on the same box, not a functional link.
+- Port-numbering convention (this project's range is 11500–11501, distinct
+  from BookTranslator's 11434/11435) — purely for log/tooling legibility
+  if both happen to be installed on the same box, not a functional link.
+  Only `11500` is actually bound (llama-swap multiplexes both models onto
+  it); `11501` is reserved but unused.
 - The physical GPU, on machines where both happen to be installed. Not a
   setup dependency, a runtime scheduling fact — see "Usage pattern" below.
 
@@ -67,10 +69,11 @@ on its own.
   as a single OpenAI-compatible endpoint on `11500`. Its `/v1/models`
   advertises both `chat` and `code`; picking one in the Open WebUI
   dropdown stops the running `llama-server` and starts the other.
-- **Models dir is shared with BookTranslator** (`~/llm_models`, bind-
-  mounted) — a directory-naming convention, not a repo/build dependency.
-  A solo deployment just creates it. (The in-repo `models/` dir is kept
-  only as a fallback mount point.)
+- **Models live in `~/llm_models`** (bind-mounted), shared with
+  BookTranslator by directory-naming convention — not a repo/build
+  dependency. A solo deployment just creates the dir. There is no in-repo
+  `models/` folder; `docker/entrypoint.sh` downloads missing `.gguf`
+  files into the mount on first start.
 - **Open WebUI version is pinned** (`v0.11.0`), not `latest`, so an
   upstream update doesn't silently change behavior.
 
@@ -92,10 +95,11 @@ LocalAIChat/
 │   ├── start.sh                  # seeds .env, creates ai-net if missing, warns
 │   │                              # (not blocks) on BookTranslator, compose up
 │   └── stop.sh                   # docker compose down
-├── models/                       # fallback mount point; real .gguf files live
-│   │                             # in ~/llm_models (gitignored either way)
 └── config/                       # Open WebUI persistent data (gitignored)
 ```
+
+`.gguf` files are **not** in this repo — they live in `~/llm_models`
+(bind-mounted to `/models`), downloaded on first start if absent.
 
 ## Usage
 
@@ -114,6 +118,21 @@ bash scripts/stop.sh
 
 ## Build status
 
+Verified end-to-end on `nicholas-Ubuntu-AI` (RX 9070 XT, gfx1201) on
+2026-08-27:
+
+- `docker compose build` — buildstage layers all cache-hit from
+  BookTranslator's image; only the llama-swap tail built.
+- First run downloaded `gpt-oss-20b-MXFP4.gguf` (12.1 GB) and
+  `Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf` (9 GB) into `~/llm_models`.
+- llama-swap up on `:11500`; `/v1/models` lists `chat` + `code`; Open
+  WebUI (`:3000`, healthy) sees both.
+- `chat` inference: ~160 tok/s prompt, ~110–150 tok/s gen (Vulkan).
+- `code` inference: `lambda x: x**2`, ~286 tok/s prompt, ~60 tok/s gen.
+- **Swap confirmed**: requesting `code` tore down the `chat` llama-server
+  and started `code`; VRAM stayed ~13 GB (one model resident), never
+  doubled.
+
 Implemented:
 
 - `docker/Dockerfile` — buildstage block synced from
@@ -128,13 +147,19 @@ Implemented:
   `restart: "no"`. Open WebUI points at the one llama-swap endpoint.
 - Open WebUI auth: `WEBUI_AUTH` confirmed current for v0.11.x.
 
+Notes / rough edges:
+
+- **Cold model load is ~3.5 min** — `~/llm_models` is on a slow disk and
+  llama.cpp mmap-faults the whole file in. `llama-swap`'s
+  `healthCheckTimeout` is set to 300 s to cover it; a shorter timeout
+  would fail the first request. Faster storage for `~/llm_models` is the
+  real fix.
+- gpt-oss is a reasoning model (harmony format) — it emits a
+  `reasoning_content` channel before the answer, so give it a real token
+  budget. Open WebUI renders the split natively.
+
 Still open:
 
-- **Confirm the placeholder models** before a real run (`gpt-oss-20b`
-  chat, `qwen2.5-coder-14b` code) — nothing has been run end-to-end yet.
-- **`docker compose build` has not been run** on the GPU host — the
-  buildstage is trusted-identical to BookTranslator's working image but
-  the llama-swap tail is new.
 - **Backend-selection / remote-GPU config** (`backend.env` schema in
   `HANDOFF.md` §Backend Selection) — deferred; do BookTranslator first
   per that doc's suggested order.
