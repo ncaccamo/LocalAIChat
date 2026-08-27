@@ -17,9 +17,10 @@ re-litigating. Session-by-session narrative lives in `git log`.
 - **Models:** `gpt-oss-20b-MXFP4` (chat, ~12 GB) and
   `Qwen2.5-Coder-14B-Instruct-Q5_K_M` (code, ~10.5 GB), in `~/llm_models`
   (bind-mounted), downloaded on first start if absent. Confirmed picks
-  for a 16 GB card; each loads alone with room for a large context
-  (coder at `CODE_CTX=16384`). Swap via `.env` (`CHAT_MODEL_FILE` /
-  `CODE_MODEL_FILE` + URLs in `docker/entrypoint.sh`) for others.
+  for a 16 GB card. Coder runs at `CODE_CTX=16384` → 13.6 GB VRAM,
+  ~1.3 GB free (fits; drop `CODE_CTX` to 12288 for more margin). Swap via
+  `.env` (`CHAT_MODEL_FILE` / `CODE_MODEL_FILE` + URLs in
+  `docker/entrypoint.sh`) for others.
 - **Backend selection:** `backend.env` switches local
   (`vulkan` | `rocm7` | `rocm714`) vs. remote (LAN llama-server + bearer
   token). All three states verified. See `docs/remote-gpu.md`.
@@ -89,6 +90,7 @@ re-litigating. Session-by-session narrative lives in `git log`.
 | remote | stand-in `llama-server --api-key` on the LAN: `start.sh` started **only** `localaichat-webui`; it reached the remote `/v1/models` with the bearer key; 401 without / with a wrong key |
 | model swap | requesting `code` tore down `chat`; VRAM held ~13 GB (one model), never doubled |
 | persistence | Open WebUI DB survives `stop.sh`/`start.sh` and rebuilds |
+| coder Q5_K_M | correct output; ~51 tok/s gen; **13.6 GB VRAM of 15.9 at `CODE_CTX=16384`** (~1.3 GB free — KV is preallocated so it's the steady-state ceiling, no mid-chat growth) |
 
 One `docker compose build` total, to ship the `COPY`'d `entrypoint.sh`;
 `vulkan`↔`rocm7` after that is `stop.sh`/`start.sh` only.
