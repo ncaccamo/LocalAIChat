@@ -26,6 +26,10 @@ re-litigating. Session-by-session narrative lives in `git log`.
   token). All three states verified. See `docs/remote-gpu.md`.
 - **Container:** `restart: "no"`, runs as the host UID, comes up and
   starts llama-swap (local mode) or isn't created at all (remote mode).
+- **Host has no ROCm / Vulkan / Mesa.** All of it is in the image. The
+  host only needs the in-kernel `amdgpu` driver (`/dev/kfd`, `/dev/dri`)
+  and `render`/`video` group membership. Host ROCm was removed 2026-08-27
+  (freed ~22 GB) with no effect on inference — verified below.
 - **Image:** `docker/Dockerfile` = the synced `BUILDSTAGE` block
   (byte-identical to `BackendBuildstage/Dockerfile.buildstage`) + a
   product tail that installs llama-swap. Buildstage layers cache-hit
@@ -91,6 +95,11 @@ re-litigating. Session-by-session narrative lives in `git log`.
 | model swap | requesting `code` tore down `chat`; VRAM held ~13 GB (one model), never doubled |
 | persistence | Open WebUI DB survives `stop.sh`/`start.sh` and rebuilds |
 | coder Q5_K_M | correct output; ~51 tok/s gen; **13.6 GB VRAM of 15.9 at `CODE_CTX=16384`** (~1.3 GB free — KV is preallocated so it's the steady-state ceiling, no mid-chat growth) |
+| host ROCm removed | after purging host ROCm (~22 GB) + reboot: Vulkan in the container still sees the GPU; `llama-server-vulkan` loaded gpt-oss-20b in **21 s** (warm), 180/83 tok/s. Containerised inference is fully independent of host ROCm. |
 
-One `docker compose build` total, to ship the `COPY`'d `entrypoint.sh`;
-`vulkan`↔`rocm7` after that is `stop.sh`/`start.sh` only.
+**Cold-load caveat:** a stone-cold read of the ~12 GB chat model off the
+USB3 SSD (fresh boot, empty page cache) can take ~5 min and once tripped
+llama-swap's health-check timeout, which killed the load. Bumped
+`healthCheckTimeout` 300 → **900 s** in `docker/entrypoint.sh` (needs the
+image rebuild to take effect). Only the first cold load is affected;
+warm loads are ~20 s.
