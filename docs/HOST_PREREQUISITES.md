@@ -15,21 +15,26 @@ host `/opt/rocm` can be removed — nothing here reads it.
 
 ## 1 — Operating System
 
-**Ubuntu 24.04 LTS.** The Dockerfile's base image and the ROCm apt repo
-used in the build stage are both pinned to this release.
+**Ubuntu 24.04 LTS or newer.** The 24.04 pin is the *container's*
+(`FROM ubuntu:24.04` + the ROCm apt repo targets `noble`), resolved
+inside the build and unaffected by the host OS. The host only has to run
+Docker and provide the kernel `amdgpu` driver (§2), so 24.04, 26.04, or
+another recent Debian-family release all work — only 24.04 is tested
+here. On a non-24.04 host, use your release's codename in the Docker apt
+repo line (§6).
 
 ## 2 — Kernel version (RDNA4-specific, easy to miss)
 
 AMD RX 9000-series (RDNA4) cards need **Linux 6.12 or newer** for the
-in-kernel `amdgpu` driver to recognize the card properly. Base Ubuntu
-24.04 ships 6.8.
+in-kernel `amdgpu` driver to recognize the card properly. 26.04+ already
+ships past this; base Ubuntu 24.04 ships 6.8 and needs the HWE stack.
 
 Check:
 ```bash
 uname -r
 ```
 
-If below 6.12:
+If below 6.12 (i.e. base 24.04):
 ```bash
 sudo apt update
 sudo apt install --install-recommends linux-generic-hwe-24.04
@@ -99,6 +104,10 @@ sudo apt update
 sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 sudo usermod -aG docker "$USER"
 ```
+The repo line uses `$VERSION_CODENAME` so it follows the host release. If
+Docker hasn't published for a brand-new Ubuntu yet, substitute the
+previous LTS codename (`noble`) in that one line until it does.
+
 Log out and back in (or reboot), then verify:
 ```bash
 docker run hello-world
@@ -112,7 +121,7 @@ sudo apt install -y curl wget git
 
 ## 8 — Quick verification checklist
 
-- [ ] `lsb_release -a` shows Ubuntu 24.04
+- [ ] `lsb_release -a` shows Ubuntu 24.04 or newer
 - [ ] `uname -r` shows 6.12 or newer
 - [ ] `lspci | grep -i amd` shows your GPU
 - [ ] `ls /dev/kfd /dev/dri/renderD128` — both exist

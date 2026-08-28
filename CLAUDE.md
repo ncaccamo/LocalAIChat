@@ -22,8 +22,9 @@ This repo is **fully self-contained** — it does not depend on
   (`BACKEND_SELECTION_HANDOFF.md`).
 
 ## Hardware this is tuned for
-AMD RX 9070 XT (RDNA4, gfx1201, 16 GB VRAM), Ryzen 7 5700X3D, Ubuntu
-24.04 + kernel ≥ 6.12.
+AMD RX 9070 XT (RDNA4, gfx1201, 16 GB VRAM), Ryzen 7 5700X3D. Host:
+Ubuntu 24.04+ (tested on 24.04), kernel ≥ 6.12 for the in-kernel amdgpu
+driver. `FROM ubuntu:24.04` is the image's pin, not the host's.
 
 ## Key invariants — don't violate without a deliberate decision
 - `restart: "no"` everywhere. On-demand, not a long-running service.
