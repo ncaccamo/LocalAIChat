@@ -34,12 +34,19 @@ driver. `FROM ubuntu:24.04` is the image's pin, not the host's.
   (16 GB can't hold both). Open WebUI's dropdown drives the swap. Don't
   reintroduce two static per-model servers.
 - **`scripts/start.sh` owns backend-mode logic** — it sources + validates
-  `backend.env` and brings up the right services. `docker/entrypoint.sh`
-  maps `LLAMA_BACKEND` (`vulkan`→`-vulkan`, `rocm7`/`rocm`→`-rocm`,
-  `rocm714`→fail fast) and sets `LD_LIBRARY_PATH` for the backend lib dir.
-- **Remote mode starts nothing locally** — `model-server` isn't created;
-  Open WebUI is pointed straight at the remote and sends the key as
-  `Authorization: Bearer`. No proxy layer.
+  `backend.env` and brings up the right services, and builds the
+  `OWUI_OPENAI_BASE_URLS` / `OWUI_OPENAI_KEYS` lists (always the *plural*
+  Open WebUI vars — one entry for `local`/`remote`, two for `hybrid`).
+  `docker/entrypoint.sh` maps `LLAMA_BACKEND` (`vulkan`→`-vulkan`,
+  `rocm7`/`rocm`→`-rocm`, `rocm714`→fail fast) for `local`, forces
+  `-cpu` for `hybrid`, and sets `LD_LIBRARY_PATH` for the backend lib dir.
+- **Three modes.** `local` — GPU in-container, serves `chat` + `code`.
+  `remote` — `model-server` isn't created; Open WebUI points straight at
+  the remote (`Authorization: Bearer`, no proxy). `hybrid` — `remote`
+  plus `model-server` running the portable `llama-server-cpu` serving one
+  always-on model `chat-cpu`; Open WebUI lists both endpoints and merges
+  them, GPU models drop when the remote box is off. `hybrid`'s local
+  side is **always** the cpu binary — `LLAMA_BACKEND` is ignored there.
 - **Three containers:** `model-server`, `open-webui`, and `searxng`
   (self-hosted metasearch for the web-search feature, on `ai-net`, not
   host-published). `start.sh` brings `searxng` up in every mode incl.

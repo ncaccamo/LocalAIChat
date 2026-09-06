@@ -51,15 +51,33 @@ case "$BACKEND_MODE" in
     [[ -n "${REMOTE_API_KEY:-}" ]] || echo \
       "backend.env: REMOTE_API_KEY is empty - the remote llama-server must then run without --api-key."
     export BACKEND_MODE
-    export OWUI_OPENAI_BASE_URL="http://${REMOTE_HOST}:${REMOTE_PORT}/v1"
-    export OWUI_OPENAI_KEY="${REMOTE_API_KEY:-sk-none}"
+    # Plural forms: a one-entry list. Compose feeds these to Open WebUI's
+    # OPENAI_API_BASE_URLS / OPENAI_API_KEYS.
+    export OWUI_OPENAI_BASE_URLS="http://${REMOTE_HOST}:${REMOTE_PORT}/v1"
+    export OWUI_OPENAI_KEYS="${REMOTE_API_KEY:-sk-none}"
     # open-webui + searxng, but NOT model-server (--no-deps skips the
     # depends_on chain; we name searxng explicitly so web search still works).
     up_cmd=(docker compose up -d --no-deps open-webui searxng)
-    target_msg="remote - Open WebUI -> ${OWUI_OPENAI_BASE_URL}"
+    target_msg="remote - Open WebUI -> ${OWUI_OPENAI_BASE_URLS}"
+    ;;
+  hybrid)
+    : "${REMOTE_HOST:?backend.env: REMOTE_HOST must be set for hybrid mode}"
+    REMOTE_PORT="${REMOTE_PORT:-11500}"
+    [[ -n "${REMOTE_API_KEY:-}" ]] || echo \
+      "backend.env: REMOTE_API_KEY is empty - the remote llama-server must then run without --api-key."
+    : "${FALLBACK_MODEL_FILE:=Qwen2.5-3B-Instruct-Q4_K_M.gguf}"
+    export BACKEND_MODE FALLBACK_MODEL_FILE
+    # Two endpoints: remote GPU box first, local CPU fallback second. Order
+    # is cosmetic (Open WebUI merges both); keeping the GPU models first
+    # groups them at the top of the dropdown. Keys pair by index.
+    export OWUI_OPENAI_BASE_URLS="http://${REMOTE_HOST}:${REMOTE_PORT}/v1;http://model-server:11500/v1"
+    export OWUI_OPENAI_KEYS="${REMOTE_API_KEY:-sk-none};sk-local"
+    # Everything: model-server (CPU fallback), open-webui, searxng.
+    up_cmd=(docker compose up -d)
+    target_msg="hybrid - GPU -> http://${REMOTE_HOST}:${REMOTE_PORT} + local CPU fallback (chat-cpu)"
     ;;
   *)
-    echo "backend.env: BACKEND_MODE='$BACKEND_MODE' invalid - want local | remote."
+    echo "backend.env: BACKEND_MODE='$BACKEND_MODE' invalid - want local | hybrid | remote."
     exit 1 ;;
 esac
 
@@ -92,7 +110,10 @@ fi
 echo
 echo "LocalAIChat is up - $target_msg"
 echo "Open WebUI: http://localhost:3000"
-if [[ "$BACKEND_MODE" == "local" ]]; then
-  echo "First run downloads the model(s) into ~/llm_models - follow with:"
+if [[ "$BACKEND_MODE" == "local" || "$BACKEND_MODE" == "hybrid" ]]; then
+  echo "First run downloads the model(s) into the models dir - follow with:"
   echo "  docker compose logs -f model-server"
+fi
+if [[ "$BACKEND_MODE" == "hybrid" ]]; then
+  echo "GPU models appear once the remote box is reachable; 'chat-cpu' is always up."
 fi

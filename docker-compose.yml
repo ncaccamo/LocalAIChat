@@ -34,14 +34,18 @@ services:
     volumes:
       # Shared with BookTranslator by convention — a directory mount, not
       # a repo/build dependency. A solo LocalAIChat box just creates it.
-      - ~/llm_models:/models
+      # Override LLM_MODELS_DIR (e.g. /srv/localaichat/llm_models) on a box
+      # where models don't live under the invoking user's home.
+      - ${LLM_MODELS_DIR:-~/llm_models}:/models
     environment:
       # Backend selection comes from backend.env via scripts/start.sh.
-      # BACKEND_MODE=remote here is defense-in-depth: start.sh normally
-      # doesn't start this service at all in remote mode.
+      #   local  - GPU here, serves chat + code (LLAMA_BACKEND picks the binary)
+      #   hybrid - CPU fallback only (chat-cpu); GPU models come from the remote
+      #   remote - not started at all (this env is defense-in-depth)
       - BACKEND_MODE=${BACKEND_MODE:-local}
       - LLAMA_BACKEND=${LLAMA_BACKEND:-vulkan}
       # RDNA4 (RX 9070 XT, gfx1201) needs this override for ROCm/HIP.
+      # Harmless in hybrid (CPU binary ignores it).
       - HSA_OVERRIDE_GFX_VERSION=12.0.1
       - HIP_VISIBLE_DEVICES=0
       - ROCR_VISIBLE_DEVICES=0
@@ -51,6 +55,9 @@ services:
       # give web-search retrieval room (SearXNG snippets get stuffed into
       # the prompt). Re-check VRAM if you push it higher.
       - CHAT_CTX=${CHAT_CTX:-16384}
+      # hybrid only: the always-on CPU fallback model + its context size.
+      - FALLBACK_MODEL_PATH=/models/${FALLBACK_MODEL_FILE:-Qwen2.5-3B-Instruct-Q4_K_M.gguf}
+      - FALLBACK_CTX=${FALLBACK_CTX:-8192}
     devices:
       - /dev/kfd
       - /dev/dri
@@ -70,17 +77,25 @@ services:
     ports:
       - "3000:8080"
     volumes:
-      - ./config/open-webui:/app/backend/data
+      # Chat history, accounts, uploads, vector DB, embedder cache. Override
+      # OWUI_DATA_DIR (e.g. /srv/localaichat/open-webui) for durable storage.
+      - ${OWUI_DATA_DIR:-./config/open-webui}:/app/backend/data
     environment:
-      # local mode: the local llama-swap endpoint (its /v1/models advertises
-      #   "chat" + "code", so both appear in the model dropdown).
-      # remote mode: scripts/start.sh sets OWUI_OPENAI_BASE_URL /
-      #   OWUI_OPENAI_KEY from backend.env's REMOTE_* and starts this
-      #   service with --no-deps (no model-server).
-      - OPENAI_API_BASE_URL=${OWUI_OPENAI_BASE_URL:-http://model-server:11500/v1}
-      # Open WebUI sends this as `Authorization: Bearer <key>`. llama-swap
-      # ignores it locally; a remote llama-server checks it against --api-key.
-      - OPENAI_API_KEY=${OWUI_OPENAI_KEY:-sk-local}
+      # Plural forms — a ";"-separated list of OpenAI-compatible endpoints
+      # that Open WebUI queries and merges. scripts/start.sh fills OWUI_*:
+      #   local  - one entry: the local llama-swap (chat + code)
+      #   remote - one entry: the remote llama-server (chat + code)
+      #   hybrid - two: remote GPU box first, then the local CPU fallback.
+      #            When the GPU box is off its /models call fails, its
+      #            models drop from the dropdown, chat-cpu stays.
+      - OPENAI_API_BASE_URLS=${OWUI_OPENAI_BASE_URLS:-http://model-server:11500/v1}
+      # Sent as `Authorization: Bearer <key>` per endpoint (paired by index).
+      # llama-swap ignores it locally; a remote llama-server checks --api-key.
+      - OPENAI_API_KEYS=${OWUI_OPENAI_KEYS:-sk-local}
+      # Cap the per-endpoint /models fetch so a powered-off remote stalls the
+      # dropdown briefly, not for the full request timeout. (v0.11.0 default
+      # is 10s; explicit here because config is env-authoritative.)
+      - AIOHTTP_CLIENT_TIMEOUT_MODEL_LIST=${OWUI_MODEL_LIST_TIMEOUT:-5}
       - WEBUI_AUTH=${WEBUI_AUTH:-true}
       # Single-user box: first account is admin, keep registration closed.
       # (With ENABLE_PERSISTENT_CONFIG=false the old "signup disabled"
@@ -123,7 +138,7 @@ services:
     networks:
       - ai-net
     volumes:
-      - ./searxng:/etc/searxng:ro
+      - ${SEARXNG_CONF_DIR:-./searxng}:/etc/searxng:ro
     environment:
       - SEARXNG_BASE_URL=http://localhost:8080/
     cap_drop:

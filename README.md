@@ -97,8 +97,12 @@ runs:
   `start.sh`, **no rebuild** (both binaries are in the image). `rocm714`
   is a valid value but parked upstream — it fails fast.
 - **`BACKEND_MODE=remote`** — points Open WebUI at a `llama-server` on
-  another LAN machine (bearer-token auth); nothing runs locally, no model
-  hot-swap. The "run `llama-server.exe` on the Windows gaming PC" mode.
+  another LAN machine (bearer-token auth); nothing runs locally. The "run
+  it on the Windows gaming PC" mode.
+- **`BACKEND_MODE=hybrid`** — `remote` **plus** an always-on CPU chat
+  model (`chat-cpu`) in the local container, for when the remote GPU box
+  gets powered off. Open WebUI lists both; the GPU models come and go with
+  the box. Needs `FALLBACK_MODEL_FILE` / `FALLBACK_CTX` in `backend.env`.
 
 Full reference incl. the remote-machine setup:
 **[`docs/remote-gpu.md`](docs/remote-gpu.md)**.
@@ -138,7 +142,9 @@ OpenAI-compatible endpoint whose `/v1/models` advertises `chat` and
 `code`. Selecting a model in Open WebUI routes through llama-swap, which
 starts that model's `llama-server` (and stops the previous one).
 `docker/entrypoint.sh` resolves the backend binary + model files, writes
-the llama-swap config, and `exec`s it.
+the llama-swap config, and `exec`s it. (In `hybrid` it serves just one
+CPU model, `chat-cpu`; in `remote` it isn't started — see
+[Backend](#backend).)
 
 `searxng` is the third container — a self-hosted metasearch engine Open
 WebUI calls only when a message has web search toggled on. `start.sh`

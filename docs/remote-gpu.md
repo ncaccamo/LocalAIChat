@@ -5,21 +5,26 @@ one knob for where inference runs. `scripts/start.sh` sources and
 validates it on every run.
 
 ```
-BACKEND_MODE=local            # local | remote
+BACKEND_MODE=local            # local | hybrid | remote
 
 # BACKEND_MODE=local only
 LLAMA_BACKEND=vulkan          # vulkan | rocm7 | rocm714
 
-# BACKEND_MODE=remote only
+# BACKEND_MODE=remote and hybrid
 REMOTE_HOST=192.168.1.50
 REMOTE_PORT=11500
 REMOTE_API_KEY=<shared-secret>
+
+# BACKEND_MODE=hybrid only
+FALLBACK_MODEL_FILE=Qwen2.5-3B-Instruct-Q4_K_M.gguf
+FALLBACK_CTX=8192
 ```
 
-Only one variable group matters per mode; the other is ignored.
+Only the variable groups its mode uses matter; the rest are ignored.
 
-Schema is duplicated in BookTranslator's `backend.env` by convention —
-keep the two identical by hand.
+Related to BookTranslator's `backend.env` by convention, not kept
+identical — the shared keys (`BACKEND_MODE`, `LLAMA_BACKEND`, `REMOTE_*`)
+stay aligned, but `hybrid` is LocalAIChat-only.
 
 ---
 
@@ -62,14 +67,53 @@ Point Open WebUI at a `llama-server` on another LAN machine (e.g.
   `searxng` is named explicitly so web search still works remote
 
 No local `llama-server` runs and `model-server` isn't created.
-`docker-compose.yml` feeds the two `OWUI_*` vars into Open WebUI's
-`OPENAI_API_BASE_URL` / `OPENAI_API_KEY`; Open WebUI sends the key as
-`Authorization: Bearer …`, which is what `llama-server --api-key`
-expects — no proxy or header-injection layer needed.
+`docker-compose.yml` feeds the `OWUI_*` vars into Open WebUI's
+`OPENAI_API_BASE_URLS` / `OPENAI_API_KEYS` (a one-entry list here); Open
+WebUI sends the key as `Authorization: Bearer …`, which is what
+`llama-server --api-key` expects — no proxy or header-injection layer
+needed.
 
-**No model hot-swap in remote mode** — the remote serves whatever single
-model it was launched with. `docker/entrypoint.sh` also treats
+Whether the remote hot-swaps models is up to the remote: a bare
+`llama-server` serves one, a remote running its own `llama-swap` (as the
+gaming PC does) serves several. `docker/entrypoint.sh` treats
 `BACKEND_MODE=remote` as "log and idle", as defense in depth.
+
+---
+
+## Hybrid mode
+
+Remote GPU **plus** an always-on local CPU chat model, for a deploy where
+the GPU box gets powered off (e.g. a homelab whose GPU lives on a Windows
+gaming PC). Open WebUI is pointed at **both** endpoints and merges their
+model lists; when the GPU box is off its models drop from the dropdown
+and the CPU one stays.
+
+`start.sh` in this mode:
+
+- exports
+  `OWUI_OPENAI_BASE_URLS=http://$REMOTE_HOST:$REMOTE_PORT/v1;http://model-server:11500/v1`
+  and the paired `OWUI_OPENAI_KEYS=$REMOTE_API_KEY;sk-local`
+- `docker compose up -d` — **all** services. `model-server` here runs the
+  portable **`llama-server-cpu`** binary (never the GPU ones —
+  `LLAMA_BACKEND` is ignored in hybrid) serving one model, `chat-cpu`,
+  via llama-swap on `:11500`.
+
+`docker/entrypoint.sh` fetches `FALLBACK_MODEL_FILE` into the models dir
+on first run if absent (default `Qwen2.5-3B-Instruct-Q4_K_M`, chat-only —
+a CPU coder is too slow to bother with; swap to a 7B via
+`FALLBACK_MODEL_FILE` for more standalone knowledge at fewer tok/s).
+
+The homelab **never** contacts the GPU box except through Open WebUI's
+normal model-list / completion calls — no health poll, no wake-on-LAN.
+`AIOHTTP_CLIENT_TIMEOUT_MODEL_LIST` (compose, default 5 s) caps how long a
+powered-off box can stall the dropdown.
+
+Model IDs: the remote advertises `chat` / `code`; the local fallback is
+`chat-cpu` — distinct on purpose, so the dropdown always shows which one
+you're on.
+
+Reverting `hybrid` → `remote` is a `backend.env` edit + `stop`/`start`,
+no rebuild. The `cpu` binary stays in the image, unused.
 
 ### Setting up the remote machine
 
@@ -91,8 +135,9 @@ there.
 5. Start it manually before a chat session — same on-demand pattern as
    everything else here.
 
-Then set `backend.env` to `BACKEND_MODE=remote` with matching
-`REMOTE_HOST` / `REMOTE_PORT` / `REMOTE_API_KEY` and run `scripts/start.sh`.
+Then set `backend.env` to `BACKEND_MODE=remote` (or `hybrid`) with
+matching `REMOTE_HOST` / `REMOTE_PORT` / `REMOTE_API_KEY` and run
+`scripts/start.sh`.
 
 ---
 

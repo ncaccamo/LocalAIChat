@@ -21,9 +21,11 @@ re-litigating. Session-by-session narrative lives in `git log`.
   ~1.3 GB free (fits; drop `CODE_CTX` to 12288 for more margin). Swap via
   `.env` (`CHAT_MODEL_FILE` / `CODE_MODEL_FILE` + URLs in
   `docker/entrypoint.sh`) for others.
-- **Backend selection:** `backend.env` switches local
-  (`vulkan` | `rocm7` | `rocm714`) vs. remote (LAN llama-server + bearer
-  token). All three states verified. See `docs/remote-gpu.md`.
+- **Backend selection:** `backend.env` `BACKEND_MODE` = `local`
+  (`vulkan` | `rocm7` | `rocm714` in-container) | `remote` (Open WebUI →
+  LAN llama-server, bearer token, nothing local) | `hybrid` (remote GPU
+  **plus** an always-on `chat-cpu` fallback in the local container).
+  All verified — see the tables below and `docs/remote-gpu.md`.
 - **Web search (2026-09-06):** a third container, self-hosted SearXNG on
   `ai-net` (no API key, not host-published). Opt-in per message via the
   Open WebUI toggle — never always-on. Local CPU embedder
@@ -53,24 +55,21 @@ re-litigating. Session-by-session narrative lives in `git log`.
 
 ## Open items
 
-1. **`BACKEND_MODE=hybrid` — remote GPU + always-on local CPU fallback.**
-   For the homelab deploy: the GPU is remote on a Windows gaming PC
-   (`llama-server.exe`, Vulkan) that the user kills to play games, so a
-   chat model that is *always* reachable has to run on the homelab (48 GB
-   RAM, no GPU) alongside Open WebUI. Design agreed 2026-09-06 — see
-   "Hybrid mode design" below. Web search (was item 2) landed first; the
-   `ENABLE_PERSISTENT_CONFIG=false` half of the hybrid plan shipped with
-   it, so that build item is already done.
+1. **Remote / hybrid against real Windows hardware** — `remote` and
+   `hybrid` are only verified against a local stand-in
+   `llama-server --api-key` on `ai-net`. Windows-side steps:
+   `docs/remote-gpu.md` → "Setting up the remote machine". The homelab
+   deployment handoff is in `homelab/localaichat/README.md`.
 
-2. **Remote mode against real Windows hardware** — `remote` (and the
-   remote half of `hybrid`) is only verified against a local stand-in
-   `llama-server --api-key`. Windows-side steps: `docs/remote-gpu.md` →
-   "Setting up the remote machine".
-
-3. **`rocm714`** — accepted as a config value but the binary isn't built
+2. **`rocm714`** — accepted as a config value but the binary isn't built
    (parked upstream: the preview wheel ships no `hip-lang-config.cmake`).
    Selecting it fails fast. Build it in `BackendBuildstage`, then re-sync
    the buildstage here.
+
+**Done since the roadmap was written:** web search (2026-09-06),
+`ENABLE_PERSISTENT_CONFIG=false`, the portable CPU llama.cpp build
+(BackendBuildstage `v2026.09.06`), and **`BACKEND_MODE=hybrid`** itself
+(2026-09-06 — see "Hybrid mode design" below, all build items complete).
 
 ## Hybrid mode design (agreed 2026-09-06 — do not re-litigate)
 
@@ -117,34 +116,35 @@ to be pinned in env because it previously lived only in that table.
 **Chat / general-purpose only** — no CPU code fallback (a CPU 14B coder is
 ~3 tok/s).
 
-**Build items.**
-1. **BackendBuildstage:** add a `cpu` llama.cpp build —
-   `-DGGML_VULKAN=OFF -DGGML_HIP=OFF`, **portable**
-   (`-DGGML_NATIVE=OFF -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON`)
-   so an image built on the Zen 3 dev box runs on any homelab CPU.
-   Produces `llama-server-cpu` + `/usr/local/lib/llama-cpu/`. Re-sync to
-   both products; **BookTranslator carries it unused** (accepted — it's a
-   power-hungry batch pipeline, a CPU fallback makes no sense there).
-2. **`docker/entrypoint.sh`:** `BACKEND_MODE=hybrid` branch;
-   `LLAMA_BACKEND=cpu` → `BE=cpu`; llama-swap config with the single
-   fallback model; fetch `FALLBACK_MODEL_FILE` if absent.
-3. **`docker-compose.yml`:** `open-webui` env → plural
-   `OPENAI_API_BASE_URLS` / `OPENAI_API_KEYS` (singular becomes a
-   one-element list for `local`/`remote`), short model-list timeout.
-   Parameterize volume paths so the homelab override can point them at
-   real storage. (`ENABLE_PERSISTENT_CONFIG=false` already done — shipped
-   with web search.)
-4. **`scripts/start.sh`:** `hybrid` case — validate `REMOTE_*` +
-   `FALLBACK_MODEL_FILE`, bring up both services, compose the plural OWUI
-   vars.
-5. **`backend.env.example`:** `hybrid` section — reused `REMOTE_*` +
-   `FALLBACK_MODEL_FILE` + `FALLBACK_CTX`.
-6. **Docs:** `docs/remote-gpu.md` gains a hybrid section; README backend
-   table gets a `hybrid` row.
+**Build items — all done (2026-09-06).**
+1. ✅ **BackendBuildstage `v2026.09.06`:** portable `cpu` llama.cpp build
+   (`-DGGML_NATIVE=OFF -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON
+   -DGGML_BACKEND_DIR=/usr/local/lib/llama-cpu`) → `llama-server-cpu` +
+   `/usr/local/lib/llama-cpu/`. Synced to both products;
+   **BookTranslator carries it unused**. `GGML_BACKEND_DIR` was the one
+   surprise — the DL loader searches the exe dir + cwd, not
+   `LD_LIBRARY_PATH`, and this layout splits bin from lib.
+2. ✅ **`docker/entrypoint.sh`:** section `0b` — `BACKEND_MODE=hybrid`
+   forces `llama-server-cpu`, resolves/fetches `FALLBACK_MODEL_FILE`,
+   writes a one-model (`chat-cpu`, `ttl: 0`) llama-swap config, execs.
+   FATAL with a rebuild hint if the CPU binary is absent (old image).
+3. ✅ **`docker-compose.yml`:** `open-webui` → plural
+   `OPENAI_API_BASE_URLS` / `OPENAI_API_KEYS`;
+   `AIOHTTP_CLIENT_TIMEOUT_MODEL_LIST=5`; `model-server` gets
+   `FALLBACK_MODEL_PATH` / `FALLBACK_CTX`; volume paths parameterized
+   (`LLM_MODELS_DIR` / `OWUI_DATA_DIR` / `SEARXNG_CONF_DIR`).
+4. ✅ **`scripts/start.sh`:** `hybrid` case — require `REMOTE_HOST`,
+   default `FALLBACK_MODEL_FILE`, set the two-entry `OWUI_OPENAI_*`,
+   `docker compose up -d` (all three services). `remote` switched to the
+   plural var names too.
+5. ✅ **`backend.env.example`:** `hybrid` section.
+6. ✅ **Docs:** `docs/remote-gpu.md` hybrid section; README backend row;
+   this doc. Homelab-side handoff: `homelab/localaichat/README.md`.
 
 **Reversibility.** `backend.env` `hybrid` → `remote` + `stop`/`start` =
-back to current behaviour, no rebuild. Repo changes are additive
-(`git revert`-clean). The `cpu` binary can stay in the image unused.
+back to prior behaviour, no rebuild. Repo changes are additive
+(`git revert`-clean). The `cpu` binary stays in the image, inert unless
+`BACKEND_MODE=hybrid` selects it.
 
 **Homelab repo owns the instance:** the real `backend.env` (gaming PC IP,
 key, `BACKEND_MODE=hybrid`, fallback model) as a plain file on the
@@ -200,6 +200,19 @@ compose, knows nothing about the gaming PC.
 | `all-MiniLM-L6-v2` | present in `config/open-webui/cache/embedding/`, loads on Open WebUI start |
 | gpt-oss-20b @ `CHAT_CTX=16384` | cold-loaded to **12.2 GB VRAM of 16.3** (~4 GB free) — the 8192 → 16384 bump costs ~0.5 GB |
 | end-to-end chat + search | confirmed in the browser: web-search toggle on a message returns a sourced answer |
+
+**Hybrid (2026-09-06, dev box + a stand-in remote on `ai-net`):**
+
+| Check | Result |
+|---|---|
+| `start.sh` hybrid | brings up `model-server` + `open-webui` + `searxng`; model-server banner: binary `llama-server-cpu`, `Serves: chat-cpu` |
+| local `/v1/models` | `chat-cpu` only (GPU models are the remote's job) |
+| Open WebUI merge, both up | `['chat-cpu', 'remote-gpu-chat']` — plural `OPENAI_API_BASE_URLS` queried and merged |
+| remote stopped | `['chat-cpu']` — dead endpoint's models drop, fallback survives, `get_all_models` returns fast (error caught) |
+| remote back up | re-merges to `['chat-cpu', 'remote-gpu-chat']` |
+| `chat-cpu` completion | real inference through the CPU binary: "Paris", `finish_reason: stop`, ~2.5 s (7B Q6 stand-in, warm) |
+
+Not yet exercised: a real powered-off Windows box (the `AIOHTTP_CLIENT_TIMEOUT_MODEL_LIST=5` path — the stand-in test hit DNS failure, which is instant, not the 5 s TCP timeout) and the default `Qwen2.5-3B` fallback (test used an existing 7B to skip the download).
 
 **Cold-load caveat:** a stone-cold read of the ~12 GB chat model off the
 USB3 SSD (fresh boot, empty page cache) can take ~5 min and once tripped
