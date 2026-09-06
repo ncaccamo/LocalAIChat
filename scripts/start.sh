@@ -53,7 +53,9 @@ case "$BACKEND_MODE" in
     export BACKEND_MODE
     export OWUI_OPENAI_BASE_URL="http://${REMOTE_HOST}:${REMOTE_PORT}/v1"
     export OWUI_OPENAI_KEY="${REMOTE_API_KEY:-sk-none}"
-    up_cmd=(docker compose up -d --no-deps open-webui)   # do NOT pull in model-server
+    # open-webui + searxng, but NOT model-server (--no-deps skips the
+    # depends_on chain; we name searxng explicitly so web search still works).
+    up_cmd=(docker compose up -d --no-deps open-webui searxng)
     target_msg="remote - Open WebUI -> ${OWUI_OPENAI_BASE_URL}"
     ;;
   *)

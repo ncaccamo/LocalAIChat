@@ -47,6 +47,10 @@ services:
       - ROCR_VISIBLE_DEVICES=0
       - CHAT_MODEL_PATH=/models/${CHAT_MODEL_FILE:-gpt-oss-20b.gguf}
       - CODE_MODEL_PATH=/models/${CODE_MODEL_FILE:-Qwen2.5-Coder-14B-Instruct-Q5_K_M.gguf}
+      # Chat context window. Raised from the entrypoint's 8192 default to
+      # give web-search retrieval room (SearXNG snippets get stuffed into
+      # the prompt). Re-check VRAM if you push it higher.
+      - CHAT_CTX=${CHAT_CTX:-16384}
     devices:
       - /dev/kfd
       - /dev/dri
@@ -78,5 +82,55 @@ services:
       # ignores it locally; a remote llama-server checks it against --api-key.
       - OPENAI_API_KEY=${OWUI_OPENAI_KEY:-sk-local}
       - WEBUI_AUTH=${WEBUI_AUTH:-true}
+      # Single-user box: first account is admin, keep registration closed.
+      # (With ENABLE_PERSISTENT_CONFIG=false the old "signup disabled"
+      # value in webui.db is ignored, so it has to be set here.)
+      - ENABLE_SIGNUP=${ENABLE_SIGNUP:-false}
+      # Env is the single source of truth for Open WebUI config: nothing
+      # below is read from / written to the `config` table in webui.db, so
+      # a fresh box comes up identical and reverting a setting is an env
+      # edit + restart. Chat history and accounts are separate tables and
+      # still persist. Corollary: web search / RAG / model aliases must be
+      # configured here, not in the Admin UI (the UI still shows them, but
+      # changes won't stick).
+      - ENABLE_PERSISTENT_CONFIG=false
+      # Web search. ENABLE_WEB_SEARCH only *offers* the feature — it is
+      # opt-in per chat session via the message-bar toggle, never
+      # always-on. This is the first thing here that sends data off the
+      # box: when a user turns it on, the query text and the fetched pages
+      # leave via this container (to the self-hosted SearXNG below, then
+      # out to whatever sites it scrapes). No third-party search API.
+      - ENABLE_WEB_SEARCH=${ENABLE_WEB_SEARCH:-true}
+      - WEB_SEARCH_ENGINE=searxng
+      - SEARXNG_QUERY_URL=http://localaichat-searxng:8080/search?q=<query>
+      - WEB_SEARCH_RESULT_COUNT=${WEB_SEARCH_RESULT_COUNT:-3}
+      - WEB_SEARCH_CONCURRENT_REQUESTS=${WEB_SEARCH_CONCURRENT_REQUESTS:-10}
+      # Local CPU embedder used to rank the fetched snippets before they go
+      # in the prompt. Empty engine = built-in sentence-transformers;
+      # ~90 MB, pulled into config/open-webui/ on first web search.
+      - RAG_EMBEDDING_ENGINE=
+      - RAG_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
     depends_on:
       - model-server
+      - searxng
+
+  searxng:
+    # Self-hosted metasearch — no API key, no account. Only the open-webui
+    # container talks to it (over ai-net); not published to the host.
+    image: searxng/searxng:2026.9.2-05cd77f71
+    container_name: localaichat-searxng
+    restart: "no"
+    networks:
+      - ai-net
+    volumes:
+      - ./searxng:/etc/searxng:ro
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8080/
+    cap_drop:
+      - ALL
+    cap_add:
+      # uwsgi drops from root to the searxng user at startup.
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE

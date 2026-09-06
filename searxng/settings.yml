@@ -1,0 +1,26 @@
+# SearXNG config for the LocalAIChat web-search integration.
+#
+# Merged over SearXNG's shipped defaults (use_default_settings: true), so
+# this file only carries the deltas that matter here.
+#
+# This instance is reachable only from the `ai-net` docker network (the
+# open-webui container calls it); it is never published to the host and
+# holds no per-user state.
+
+use_default_settings: true
+
+server:
+  # Static value is fine: not internet-facing, no sessions, no stored
+  # state. Regenerate if you ever expose this instance.
+  secret_key: "localaichat-searxng-lan-only-not-a-secret"
+  # Off so Open WebUI's programmatic JSON calls aren't rate-limited or
+  # treated as bot traffic. Also means no valkey/redis dependency.
+  limiter: false
+  image_proxy: false
+
+search:
+  # Open WebUI calls SearXNG's JSON API; the stock image serves HTML only,
+  # which makes those calls 403.
+  formats:
+    - html
+    - json

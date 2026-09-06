@@ -40,6 +40,20 @@ driver. `FROM ubuntu:24.04` is the image's pin, not the host's.
 - **Remote mode starts nothing locally** — `model-server` isn't created;
   Open WebUI is pointed straight at the remote and sends the key as
   `Authorization: Bearer`. No proxy layer.
+- **Three containers:** `model-server`, `open-webui`, and `searxng`
+  (self-hosted metasearch for the web-search feature, on `ai-net`, not
+  host-published). `start.sh` brings `searxng` up in every mode incl.
+  `remote` (named explicitly there so `--no-deps` doesn't skip it).
+- **Open WebUI config is env-authoritative** —
+  `ENABLE_PERSISTENT_CONFIG=false`. Connections, web search, RAG, model
+  aliases must be set via env/compose; the Admin UI's copies of those
+  won't persist (the `config` table in `webui.db` is bypassed). Chat
+  history and accounts are separate tables and still persist. Anything
+  that used to be set only in the UI (e.g. `ENABLE_SIGNUP`) must be
+  pinned in env.
+- **Web search is opt-in per message** via the Open WebUI toggle — never
+  the always-on global. It's the only outbound traffic the project makes;
+  keep it that way.
 - `backend.env` is related to BookTranslator's by convention, not kept
   identical. Shared concepts (`BACKEND_MODE`, `LLAMA_BACKEND`, `REMOTE_*`)
   stay aligned; new modes are per-product (LocalAIChat has `hybrid`,

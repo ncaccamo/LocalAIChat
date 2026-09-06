@@ -57,8 +57,9 @@ Point Open WebUI at a `llama-server` on another LAN machine (e.g.
 - `docker compose rm -sf model-server` (in case it was running)
 - exports `OWUI_OPENAI_BASE_URL=http://$REMOTE_HOST:$REMOTE_PORT/v1` and
   `OWUI_OPENAI_KEY=$REMOTE_API_KEY`
-- `docker compose up -d --no-deps open-webui` — `--no-deps` so
-  `open-webui`'s `depends_on` doesn't pull `model-server` back in
+- `docker compose up -d --no-deps open-webui searxng` — `--no-deps` so
+  `open-webui`'s `depends_on` doesn't pull `model-server` back in;
+  `searxng` is named explicitly so web search still works remote
 
 No local `llama-server` runs and `model-server` isn't created.
 `docker-compose.yml` feeds the two `OWUI_*` vars into Open WebUI's

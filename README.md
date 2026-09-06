@@ -3,8 +3,10 @@
 On-demand local chat / general-purpose LLM serving: **Open WebUI** in
 front of a self-contained model-serving container (ROCm 7.2.4 + Vulkan +
 llama.cpp, with [llama-swap](https://github.com/mostlygeek/llama-swap) for
-on-demand model switching). Runs entirely on local hardware — no cloud API
-calls.
+on-demand model switching). Inference runs entirely on local hardware — no
+cloud API calls. The one exception is the optional [web search](#web-search)
+(off unless you toggle it on for a message), which reaches the internet
+through a self-hosted SearXNG container — still no third-party API.
 
 Tuned for an AMD RX 9070 XT (RDNA4, 16 GB) + Ryzen 7 5700X3D on Ubuntu
 24.04. Sibling project to `BookTranslator`, but **fully independent at the
@@ -54,6 +56,10 @@ First use of a model downloads it into `~/llm_models` (~23 GB total) and
 loads it, which takes a minute or two; watch with
 `docker compose logs -f model-server`.
 
+To let a reply use live web results, toggle **web search** on in the
+message bar before sending (it resets per chat session). See
+[Web search](#web-search).
+
 ```bash
 bash scripts/start.sh    # bring the stack up
 bash scripts/stop.sh     # stop it, free the GPU
@@ -97,6 +103,32 @@ runs:
 Full reference incl. the remote-machine setup:
 **[`docs/remote-gpu.md`](docs/remote-gpu.md)**.
 
+### Web search
+
+A third container, **SearXNG**, runs on `ai-net` (no API key, no account,
+not published to the host). Open WebUI queries it, embeds the top results
+with a small local CPU model (`all-MiniLM-L6-v2`, pulled into
+`config/open-webui/` on first use), and feeds the best snippets to the
+chat model.
+
+It is **opt-in per message**: the toggle in the message bar, off by
+default, resetting each chat session. There is no always-on mode. When you
+switch it on, that message's query text and the pages SearXNG fetches
+leave the box — the only outbound traffic this project makes.
+
+Knobs (`.env`, applied on `start.sh`):
+
+| Var | Default | Notes |
+|---|---|---|
+| `ENABLE_WEB_SEARCH` | `true` | `false` removes the toggle entirely |
+| `WEB_SEARCH_RESULT_COUNT` | `3` | results fetched per query |
+| `WEB_SEARCH_CONCURRENT_REQUESTS` | `10` | parallel page fetches |
+
+Open WebUI config here is **env-authoritative** —
+`ENABLE_PERSISTENT_CONFIG=false`, so connections, web search, and RAG come
+from env every start and the Admin UI's copies of those settings don't
+stick. Chat history and accounts are unaffected.
+
 ---
 
 ## How it works
@@ -107,6 +139,10 @@ OpenAI-compatible endpoint whose `/v1/models` advertises `chat` and
 starts that model's `llama-server` (and stops the previous one).
 `docker/entrypoint.sh` resolves the backend binary + model files, writes
 the llama-swap config, and `exec`s it.
+
+`searxng` is the third container — a self-hosted metasearch engine Open
+WebUI calls only when a message has web search toggled on. `start.sh`
+brings it up with the rest of the stack (in `remote` mode too).
 
 ## Relationship to BookTranslator
 

@@ -5,11 +5,11 @@ re-litigating. Session-by-session narrative lives in `git log`.
 
 ---
 
-## Current state (2026-08-27)
+## Current state (2026-09-06)
 
 - **Runs end-to-end.** Both models chat through Open WebUI (`:3000`),
-  local GPU only, no cloud calls. Conversations persist
-  (`config/open-webui/webui.db`, bind-mounted).
+  local GPU only, no cloud calls (bar the opt-in web search below).
+  Conversations persist (`config/open-webui/webui.db`, bind-mounted).
 - **Serving:** one llama-swap process on `:11500` presents an
   OpenAI-compatible endpoint; its `/v1/models` lists `chat` + `code`.
   Picking one in the Open WebUI dropdown stops the running `llama-server`
@@ -24,6 +24,17 @@ re-litigating. Session-by-session narrative lives in `git log`.
 - **Backend selection:** `backend.env` switches local
   (`vulkan` | `rocm7` | `rocm714`) vs. remote (LAN llama-server + bearer
   token). All three states verified. See `docs/remote-gpu.md`.
+- **Web search (2026-09-06):** a third container, self-hosted SearXNG on
+  `ai-net` (no API key, not host-published). Opt-in per message via the
+  Open WebUI toggle — never always-on. Local CPU embedder
+  (`all-MiniLM-L6-v2`) ranks results. `CHAT_CTX` raised 8192 → 16384 for
+  retrieval headroom. First feature that sends anything off the box.
+- **Open WebUI config is env-authoritative** — `ENABLE_PERSISTENT_CONFIG=false`
+  shipped early with web search (the hybrid design already called for it).
+  Connections / web search / RAG come from env every start; the `config`
+  table in `webui.db` is bypassed. Chat history + accounts still persist.
+  `ENABLE_SIGNUP=false` is now set explicitly (it used to live only in
+  that bypassed table).
 - **Container:** `restart: "no"`, runs as the host UID, comes up and
   starts llama-swap (local mode) or isn't created at all (remote mode).
 - **Host has no ROCm / Vulkan / Mesa.** All of it is in the image. The
@@ -47,29 +58,16 @@ re-litigating. Session-by-session narrative lives in `git log`.
    (`llama-server.exe`, Vulkan) that the user kills to play games, so a
    chat model that is *always* reachable has to run on the homelab (48 GB
    RAM, no GPU) alongside Open WebUI. Design agreed 2026-09-06 — see
-   "Hybrid mode design" below. Build order: **this first, then web
-   search** (item 2 — independent, not coupled).
+   "Hybrid mode design" below. Web search (was item 2) landed first; the
+   `ENABLE_PERSISTENT_CONFIG=false` half of the hybrid plan shipped with
+   it, so that build item is already done.
 
-2. **Web search for the chat model** — wanted, after hybrid. Open WebUI's
-   built-in web search: retrieval, not model tool-calling; **opt-in per
-   message via the UI toggle** (do NOT enable the always-on global
-   setting) — the required user control, given it's the first feature
-   that sends anything off the box (query text + page fetches leave via
-   the `open-webui` container; the "no cloud calls" line gets an
-   asterisk). Plan: self-hosted **SearXNG** on `ai-net` (no API key), the
-   built-in CPU embedder (`all-MiniLM-L6-v2`, ~90 MB, downloads
-   in-container on first use), bump `CHAT_CTX` 8192 → ~16384 and re-check
-   VRAM. **Config via env, not Admin UI** — hybrid sets
-   `ENABLE_PERSISTENT_CONFIG=false` (see below), so all Open WebUI config
-   (connections, web search, RAG, model aliases) must come from env /
-   compose, not from settings persisted in `webui.db`.
-
-3. **Remote mode against real Windows hardware** — `remote` (and the
+2. **Remote mode against real Windows hardware** — `remote` (and the
    remote half of `hybrid`) is only verified against a local stand-in
    `llama-server --api-key`. Windows-side steps: `docs/remote-gpu.md` →
    "Setting up the remote machine".
 
-4. **`rocm714`** — accepted as a config value but the binary isn't built
+3. **`rocm714`** — accepted as a config value but the binary isn't built
    (parked upstream: the preview wheel ships no `hip-lang-config.cmake`).
    Selecting it fails fast. Build it in `BackendBuildstage`, then re-sync
    the buildstage here.
@@ -106,8 +104,12 @@ re-read from env on every start and nothing is written to / read from the
 `config` table in `webui.db`. Consequence: reverting `hybrid` → `remote`
 is *only* the `backend.env` change + restart — no stale second connection
 left behind. Trade-off: web-search / RAG / model-alias config must also be
-env-driven from here on (see item 2). Chat **history / accounts** are
-unaffected — those are separate tables, still persisted.
+env-driven from here on. Chat **history / accounts** are unaffected —
+those are separate tables, still persisted. **Shipped 2026-09-06 with web
+search** (v0.11.0 `Config.get` short-circuits to the env default for
+every key when `PERSISTENT_ENABLED` is false — verified the stale
+`web.search.enable='false'` DB row is ignored). `ENABLE_SIGNUP=false` had
+to be pinned in env because it previously lived only in that table.
 
 **Fallback model.** `Qwen2.5-3B-Instruct-Q4_K_M` (snappy on CPU,
 ~15–30 tok/s; `.env`-swappable to a 7B for better standalone knowledge).
@@ -128,9 +130,10 @@ unaffected — those are separate tables, still persisted.
    fallback model; fetch `FALLBACK_MODEL_FILE` if absent.
 3. **`docker-compose.yml`:** `open-webui` env → plural
    `OPENAI_API_BASE_URLS` / `OPENAI_API_KEYS` (singular becomes a
-   one-element list for `local`/`remote`), `ENABLE_PERSISTENT_CONFIG=false`,
-   short model-list timeout. Parameterize volume paths so the homelab
-   override can point them at real storage.
+   one-element list for `local`/`remote`), short model-list timeout.
+   Parameterize volume paths so the homelab override can point them at
+   real storage. (`ENABLE_PERSISTENT_CONFIG=false` already done — shipped
+   with web search.)
 4. **`scripts/start.sh`:** `hybrid` case — validate `REMOTE_*` +
    `FALLBACK_MODEL_FILE`, bring up both services, compose the plural OWUI
    vars.
@@ -186,6 +189,17 @@ compose, knows nothing about the gaming PC.
 | persistence | Open WebUI DB survives `stop.sh`/`start.sh` and rebuilds |
 | coder Q5_K_M | correct output; ~51 tok/s gen; **13.6 GB VRAM of 15.9 at `CODE_CTX=16384`** (~1.3 GB free — KV is preallocated so it's the steady-state ceiling, no mid-chat growth) |
 | host ROCm removed | after purging host ROCm (~22 GB) + reboot: Vulkan in the container still sees the GPU; `llama-server-vulkan` loaded gpt-oss-20b in **21 s** (warm), 180/83 tok/s. Containerised inference is fully independent of host ROCm. |
+
+**Web search (2026-09-06):**
+
+| Check | Result |
+|---|---|
+| SearXNG JSON API | `localaichat-searxng` up; `GET /search?q=…&format=json` from the `open-webui` container → HTTP 200 with results (the `formats: [json]` delta in `searxng/settings.yml` is what makes it non-403) |
+| Open WebUI → SearXNG | `search_searxng()` inside the container returned 3 ranked results for a test query via `SEARXNG_QUERY_URL=http://localaichat-searxng:8080/search?q=<query>` |
+| env-authoritative | with `ENABLE_PERSISTENT_CONFIG=false`, `ENABLE_WEB_SEARCH` / `WEB_SEARCH_ENGINE` / `SEARXNG_QUERY_URL` resolve from env despite `webui.db` holding `web.search.enable='false'` from a prior run; `/api/config` shows `enable_signup:true` (DB had `false`) → DB bypass confirmed |
+| `all-MiniLM-L6-v2` | present in `config/open-webui/cache/embedding/`, loads on Open WebUI start |
+| gpt-oss-20b @ `CHAT_CTX=16384` | cold-loaded to **12.2 GB VRAM of 16.3** (~4 GB free) — the 8192 → 16384 bump costs ~0.5 GB |
+| end-to-end chat + search | confirmed in the browser: web-search toggle on a message returns a sourced answer |
 
 **Cold-load caveat:** a stone-cold read of the ~12 GB chat model off the
 USB3 SSD (fresh boot, empty page cache) can take ~5 min and once tripped
