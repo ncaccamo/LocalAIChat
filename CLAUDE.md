@@ -40,8 +40,10 @@ driver. `FROM ubuntu:24.04` is the image's pin, not the host's.
 - **Remote mode starts nothing locally** — `model-server` isn't created;
   Open WebUI is pointed straight at the remote and sends the key as
   `Authorization: Bearer`. No proxy layer.
-- `backend.env` schema is duplicated in BookTranslator by convention, not
-  shared via any file — keep the two identical by hand.
+- `backend.env` is related to BookTranslator's by convention, not kept
+  identical. Shared concepts (`BACKEND_MODE`, `LLAMA_BACKEND`, `REMOTE_*`)
+  stay aligned; new modes are per-product (LocalAIChat has `hybrid`,
+  BookTranslator does not).
 - `entrypoint.sh` is `COPY`'d into the image (not mounted): changing it
   needs `docker compose build`. Switching `vulkan` ↔ `rocm7` afterward is
   `stop.sh`/`start.sh` only, no rebuild.
