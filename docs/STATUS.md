@@ -30,7 +30,7 @@ re-litigating. Session-by-session narrative lives in `git log`.
   `ai-net` (no API key, not host-published). Opt-in per message via the
   Open WebUI toggle — never always-on. Local CPU embedder
   (`all-MiniLM-L6-v2`) ranks results. `CHAT_CTX` raised 8192 → 16384 for
-  retrieval headroom. First feature that sends anything off the box.
+  retrieval headroom. First feature that sends anything off the system.
 - **Open WebUI config is env-authoritative** — `ENABLE_PERSISTENT_CONFIG=false`
   shipped early with web search (the hybrid design already called for it).
   Connections / web search / RAG come from env every start; the `config`
@@ -86,12 +86,12 @@ services (`model-server` runs llama-swap serving the one fallback model;
 with matching `OPENAI_API_KEYS`. Open WebUI queries both and merges the
 model lists. Rejected 2C (homelab llama-swap fronts a pass-through to the
 remote): llama-swap can't inject the remote's `Authorization` header, and
-its `/v1/models` would keep listing the GPU models even when the box is
+its `/v1/models` would keep listing the GPU models even when the system is
 off.
 
 **Gaming-PC-off behaviour.** Open WebUI's `/v1/models` call to the remote
 fails → its models (`gpt-oss-20b`, `qwen2.5-coder-14b`) **drop from the
-dropdown**; only the CPU fallback shows. Box back + page refresh → they
+dropdown**; only the CPU fallback shows. System back + page refresh → they
 return. The homelab **never** contacts the gaming PC otherwise — no
 health poll, no wake-on-LAN, no retry loop. Set a **short Open WebUI
 model-list HTTP timeout** so a dead remote doesn't stall the dropdown
@@ -146,13 +146,16 @@ back to prior behaviour, no rebuild. Repo changes are additive
 (`git revert`-clean). The `cpu` binary stays in the image, inert unless
 `BACKEND_MODE=hybrid` selects it.
 
-**Homelab repo owns the instance:** the real `backend.env` (gaming PC IP,
-key, `BACKEND_MODE=hybrid`, fallback model) as a plain file on the
-homelab box; a compose override (`restart: unless-stopped`, real volume
-paths e.g. `/srv/localaichat/...`); and boot wiring (systemd unit /
-Docker restart policy / whatever orchestrator the homelab uses). This
-repo stays generic — ships `backend.env.example` and a parameterizable
-compose, knows nothing about the gaming PC.
+**Split of concerns.** This repo ships the generic pieces:
+`backend.env.example`, a parameterizable `docker-compose.yml`, and
+`docker-compose.override.yml.example` (the minimal `!reset` of
+`model-server`'s GPU wiring, needed for `hybrid` on a GPU-less host —
+`cp` it to `docker-compose.override.yml`, which is gitignored). The
+homelab repo owns the instance: the filled-in `backend.env` (gaming PC
+IP, key, fallback model), a compose override that *extends* the shipped
+one with `restart: unless-stopped` + real volume paths
+(`/srv/localaichat/...`), and boot wiring. Neither repo knows the gaming
+PC's address at rest.
 
 ## Decisions worth not re-litigating
 
@@ -170,7 +173,7 @@ compose, knows nothing about the gaming PC.
   compose, or code. The ROCm/Vulkan build stage is duplicated on purpose;
   re-sync via `BackendBuildstage/sync_to_product.sh` when it changes.
 - **`~/llm_models` shared with BookTranslator** by directory convention
-  only — not a repo/build dependency. A solo box just creates it.
+  only — not a repo/build dependency. A solo system just creates it.
 - **`backend.env` is related to BookTranslator's by convention, not kept
   identical.** The shared concepts (`BACKEND_MODE`, `LLAMA_BACKEND`,
   `REMOTE_*`) stay aligned where they overlap, but new modes are
@@ -201,7 +204,7 @@ compose, knows nothing about the gaming PC.
 | gpt-oss-20b @ `CHAT_CTX=16384` | cold-loaded to **12.2 GB VRAM of 16.3** (~4 GB free) — the 8192 → 16384 bump costs ~0.5 GB |
 | end-to-end chat + search | confirmed in the browser: web-search toggle on a message returns a sourced answer |
 
-**Hybrid (2026-09-06, dev box + a stand-in remote on `ai-net`):**
+**Hybrid (2026-09-06, dev system + a stand-in remote on `ai-net`):**
 
 | Check | Result |
 |---|---|
@@ -212,7 +215,7 @@ compose, knows nothing about the gaming PC.
 | remote back up | re-merges to `['chat-cpu', 'remote-gpu-chat']` |
 | `chat-cpu` completion | real inference through the CPU binary: "Paris", `finish_reason: stop`, ~2.5 s (7B Q6 stand-in, warm) |
 
-Not yet exercised: a real powered-off Windows box (the `AIOHTTP_CLIENT_TIMEOUT_MODEL_LIST=5` path — the stand-in test hit DNS failure, which is instant, not the 5 s TCP timeout) and the default `Qwen2.5-3B` fallback (test used an existing 7B to skip the download).
+Not yet exercised: a real powered-off Windows system (the `AIOHTTP_CLIENT_TIMEOUT_MODEL_LIST=5` path — the stand-in test hit DNS failure, which is instant, not the 5 s TCP timeout) and the default `Qwen2.5-3B` fallback (test used an existing 7B to skip the download).
 
 **Cold-load caveat:** a stone-cold read of the ~12 GB chat model off the
 USB3 SSD (fresh boot, empty page cache) can take ~5 min and once tripped

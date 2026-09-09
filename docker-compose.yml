@@ -33,8 +33,8 @@ services:
       - "11500:11500"   # OpenAI-compatible endpoint (llama-swap multiplexes chat + code)
     volumes:
       # Shared with BookTranslator by convention — a directory mount, not
-      # a repo/build dependency. A solo LocalAIChat box just creates it.
-      # Override LLM_MODELS_DIR (e.g. /srv/localaichat/llm_models) on a box
+      # a repo/build dependency. A solo LocalAIChat system just creates it.
+      # Override LLM_MODELS_DIR (e.g. /srv/localaichat/llm_models) on a system
       # where models don't live under the invoking user's home.
       - ${LLM_MODELS_DIR:-~/llm_models}:/models
     environment:
@@ -85,8 +85,8 @@ services:
       # that Open WebUI queries and merges. scripts/start.sh fills OWUI_*:
       #   local  - one entry: the local llama-swap (chat + code)
       #   remote - one entry: the remote llama-server (chat + code)
-      #   hybrid - two: remote GPU box first, then the local CPU fallback.
-      #            When the GPU box is off its /models call fails, its
+      #   hybrid - two: remote GPU system first, then the local CPU fallback.
+      #            When the GPU system is off its /models call fails, its
       #            models drop from the dropdown, chat-cpu stays.
       - OPENAI_API_BASE_URLS=${OWUI_OPENAI_BASE_URLS:-http://model-server:11500/v1}
       # Sent as `Authorization: Bearer <key>` per endpoint (paired by index).
@@ -97,13 +97,13 @@ services:
       # is 10s; explicit here because config is env-authoritative.)
       - AIOHTTP_CLIENT_TIMEOUT_MODEL_LIST=${OWUI_MODEL_LIST_TIMEOUT:-5}
       - WEBUI_AUTH=${WEBUI_AUTH:-true}
-      # Single-user box: first account is admin, keep registration closed.
+      # Single-user system: first account is admin, keep registration closed.
       # (With ENABLE_PERSISTENT_CONFIG=false the old "signup disabled"
       # value in webui.db is ignored, so it has to be set here.)
       - ENABLE_SIGNUP=${ENABLE_SIGNUP:-false}
       # Env is the single source of truth for Open WebUI config: nothing
       # below is read from / written to the `config` table in webui.db, so
-      # a fresh box comes up identical and reverting a setting is an env
+      # a fresh system comes up identical and reverting a setting is an env
       # edit + restart. Chat history and accounts are separate tables and
       # still persist. Corollary: web search / RAG / model aliases must be
       # configured here, not in the Admin UI (the UI still shows them, but
@@ -112,7 +112,7 @@ services:
       # Web search. ENABLE_WEB_SEARCH only *offers* the feature — it is
       # opt-in per chat session via the message-bar toggle, never
       # always-on. This is the first thing here that sends data off the
-      # box: when a user turns it on, the query text and the fetched pages
+      # system: when a user turns it on, the query text and the fetched pages
       # leave via this container (to the self-hosted SearXNG below, then
       # out to whatever sites it scrapes). No third-party search API.
       - ENABLE_WEB_SEARCH=${ENABLE_WEB_SEARCH:-true}

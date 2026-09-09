@@ -17,7 +17,10 @@ seen the other.
 
 ## Install
 
-### 1. Host prerequisites
+Two paths: **local mode** (steps 1–2, GPU in the container on this host)
+or a GPU-less host running **`remote` / `hybrid`** (the alternative below).
+
+### 1. Host prerequisites (local mode)
 
 Ubuntu 24.04 **or newer**, kernel ≥ 6.12 (in-kernel `amdgpu` driver), the
 `render`/`video` groups, Docker. **No host ROCm / Vulkan / Mesa** — all in
@@ -37,15 +40,40 @@ builds the image, brings the stack up:
 bash scripts/setup.sh
 ```
 
-First build compiles llama.cpp twice (ROCm + Vulkan): 20–30 min, much
-faster if BookTranslator's image is already built (shared layers).
+First build compiles llama.cpp three times (ROCm + Vulkan + a portable
+CPU build): 25–35 min, much faster if BookTranslator's image is already
+built (shared layers).
+
+### Alternative: remote / hybrid on a GPU-less host
+
+`scripts/setup.sh` checks for a local AMD GPU and exits if there isn't
+one — it's local-mode only. For `remote` or `hybrid` on a host with no
+GPU (the usual case: the GPU is on another machine), prerequisites shrink
+to **Docker + the compose plugin** (`docs/HOST_PREREQUISITES.md` §6 only;
+skip the kernel / `amdgpu` / group steps), and the bring-up is manual:
+
+```bash
+cp backend.env.example backend.env
+# edit backend.env: BACKEND_MODE=remote|hybrid, REMOTE_* (+ FALLBACK_* for hybrid)
+
+# hybrid only — strips model-server's /dev/kfd wiring, and builds the CPU image:
+cp docker-compose.override.yml.example docker-compose.override.yml
+docker compose build
+
+bash scripts/start.sh    # seeds .env, creates ai-net, starts the right services
+```
+
+`remote` needs neither the override nor a build — `model-server` never
+starts, and `open-webui` / `searxng` are pulled images. Full `backend.env`
+reference + the remote-machine (Windows) setup:
+**[`docs/remote-gpu.md`](docs/remote-gpu.md)**.
 
 ---
 
 ## Use
 
 Open **http://localhost:3000**, create an account (local, stays on the
-box), and pick a model from the dropdown:
+system), and pick a model from the dropdown:
 
 - **`gpt-oss-20b`** — general chat / reasoning
 - **`qwen2.5-coder-14b`** — coding
@@ -100,9 +128,12 @@ runs:
   another LAN machine (bearer-token auth); nothing runs locally. The "run
   it on the Windows gaming PC" mode.
 - **`BACKEND_MODE=hybrid`** — `remote` **plus** an always-on CPU chat
-  model (`chat-cpu`) in the local container, for when the remote GPU box
+  model (`chat-cpu`) in the local container, for when the remote GPU system
   gets powered off. Open WebUI lists both; the GPU models come and go with
-  the box. Needs `FALLBACK_MODEL_FILE` / `FALLBACK_CTX` in `backend.env`.
+  the system. Needs `FALLBACK_MODEL_FILE` / `FALLBACK_CTX` in `backend.env`,
+  and on a GPU-less host `cp docker-compose.override.yml.example
+  docker-compose.override.yml` (strips the `/dev/kfd` mount `model-server`
+  otherwise requires).
 
 Full reference incl. the remote-machine setup:
 **[`docs/remote-gpu.md`](docs/remote-gpu.md)**.
@@ -118,7 +149,7 @@ chat model.
 It is **opt-in per message**: the toggle in the message bar, off by
 default, resetting each chat session. There is no always-on mode. When you
 switch it on, that message's query text and the pages SearXNG fetches
-leave the box — the only outbound traffic this project makes.
+leave the system — the only outbound traffic this project makes.
 
 Knobs (`.env`, applied on `start.sh`):
 
@@ -171,8 +202,8 @@ it never touches the product-specific tail below the markers.
 | File | For |
 |---|---|
 | `README.md` | this — install, use, configure |
-| [`docs/HOST_PREREQUISITES.md`](docs/HOST_PREREQUISITES.md) | bare-metal host setup — do this first |
-| [`docs/remote-gpu.md`](docs/remote-gpu.md) | `backend.env`, local backend switching, remote-GPU mode |
+| [`docs/HOST_PREREQUISITES.md`](docs/HOST_PREREQUISITES.md) | bare-metal host setup for local mode — do this first (remote/hybrid need only §6) |
+| [`docs/remote-gpu.md`](docs/remote-gpu.md) | `backend.env`; local backend switching; remote + hybrid modes; remote-machine setup |
 | [`docs/STATUS.md`](docs/STATUS.md) | current state, open items, decisions worth not re-litigating |
 | `CLAUDE.md` | orientation + hard invariants for AI coding agents |
 

@@ -42,6 +42,14 @@ case "$BACKEND_MODE" in
         exit 1 ;;
     esac
     export BACKEND_MODE LLAMA_BACKEND
+    # docker-compose.override.yml is auto-loaded by compose. The shipped
+    # .example strips model-server's /dev/kfd + video/render wiring for a
+    # GPU-less hybrid host -- in local mode that quietly breaks GPU access.
+    if [[ -f docker-compose.override.yml ]]; then
+      echo "WARNING: docker-compose.override.yml is present and will be applied."
+      echo "         If it's the GPU-less hybrid override, local mode will lose"
+      echo "         the GPU. Remove it for local, or check it's intentional."
+    fi
     up_cmd=(docker compose up -d)
     target_msg="local ($LLAMA_BACKEND) - llama-swap on :11500"
     ;;
@@ -67,7 +75,7 @@ case "$BACKEND_MODE" in
       "backend.env: REMOTE_API_KEY is empty - the remote llama-server must then run without --api-key."
     : "${FALLBACK_MODEL_FILE:=Qwen2.5-3B-Instruct-Q4_K_M.gguf}"
     export BACKEND_MODE FALLBACK_MODEL_FILE
-    # Two endpoints: remote GPU box first, local CPU fallback second. Order
+    # Two endpoints: remote GPU system first, local CPU fallback second. Order
     # is cosmetic (Open WebUI merges both); keeping the GPU models first
     # groups them at the top of the dropdown. Keys pair by index.
     export OWUI_OPENAI_BASE_URLS="http://${REMOTE_HOST}:${REMOTE_PORT}/v1;http://model-server:11500/v1"
@@ -115,5 +123,5 @@ if [[ "$BACKEND_MODE" == "local" || "$BACKEND_MODE" == "hybrid" ]]; then
   echo "  docker compose logs -f model-server"
 fi
 if [[ "$BACKEND_MODE" == "hybrid" ]]; then
-  echo "GPU models appear once the remote box is reachable; 'chat-cpu' is always up."
+  echo "GPU models appear once the remote system is reachable; 'chat-cpu' is always up."
 fi

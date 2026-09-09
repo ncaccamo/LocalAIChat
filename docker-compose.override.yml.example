@@ -1,7 +1,7 @@
 # Compose override for LocalAIChat HYBRID mode on a host with no AMD GPU.
 #
 # hybrid = the chat/code models run on a remote llama-server (the GPU
-# box); model-server here runs ONLY the always-on CPU fallback (chat-cpu).
+# system); model-server here runs ONLY the always-on CPU fallback (chat-cpu).
 # It still has to start, but with no GPU it must not mount /dev/kfd or
 # join the video/render groups.
 #

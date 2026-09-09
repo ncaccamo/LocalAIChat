@@ -45,7 +45,7 @@ driver. `FROM ubuntu:24.04` is the image's pin, not the host's.
   the remote (`Authorization: Bearer`, no proxy). `hybrid` — `remote`
   plus `model-server` running the portable `llama-server-cpu` serving one
   always-on model `chat-cpu`; Open WebUI lists both endpoints and merges
-  them, GPU models drop when the remote box is off. `hybrid`'s local
+  them, GPU models drop when the remote system is off. `hybrid`'s local
   side is **always** the cpu binary — `LLAMA_BACKEND` is ignored there.
 - **Three containers:** `model-server`, `open-webui`, and `searxng`
   (self-hosted metasearch for the web-search feature, on `ai-net`, not

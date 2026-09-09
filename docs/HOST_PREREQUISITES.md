@@ -11,6 +11,13 @@ GPU userspace is compiled into the container image; the host contributes
 only the in-kernel `amdgpu` driver and Docker. A previously-installed
 host `/opt/rocm` can be removed — nothing here reads it.
 
+**Remote / hybrid mode?** This doc is for `local` mode — the GPU runs in
+the container here. If this host will only run `BACKEND_MODE=remote` or
+`hybrid` (the GPU is on another machine), you need **§6 (Docker) only**;
+skip the kernel, `amdgpu`, and `render`/`video` group steps. Bring-up is
+in `README.md` → "Install → Alternative: remote / hybrid on a GPU-less
+host".
+
 ---
 
 ## 1 — Operating System

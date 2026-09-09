@@ -60,8 +60,9 @@ Point Open WebUI at a `llama-server` on another LAN machine (e.g.
 `start.sh` in this mode:
 
 - `docker compose rm -sf model-server` (in case it was running)
-- exports `OWUI_OPENAI_BASE_URL=http://$REMOTE_HOST:$REMOTE_PORT/v1` and
-  `OWUI_OPENAI_KEY=$REMOTE_API_KEY`
+- exports `OWUI_OPENAI_BASE_URLS=http://$REMOTE_HOST:$REMOTE_PORT/v1` and
+  `OWUI_OPENAI_KEYS=$REMOTE_API_KEY` (the plural Open WebUI vars — a
+  one-entry list in this mode)
 - `docker compose up -d --no-deps open-webui searxng` — `--no-deps` so
   `open-webui`'s `depends_on` doesn't pull `model-server` back in;
   `searxng` is named explicitly so web search still works remote
@@ -83,9 +84,9 @@ gaming PC does) serves several. `docker/entrypoint.sh` treats
 ## Hybrid mode
 
 Remote GPU **plus** an always-on local CPU chat model, for a deploy where
-the GPU box gets powered off (e.g. a homelab whose GPU lives on a Windows
+the GPU system gets powered off (e.g. a homelab whose GPU lives on a Windows
 gaming PC). Open WebUI is pointed at **both** endpoints and merges their
-model lists; when the GPU box is off its models drop from the dropdown
+model lists; when the GPU system is off its models drop from the dropdown
 and the CPU one stays.
 
 `start.sh` in this mode:
@@ -103,10 +104,10 @@ on first run if absent (default `Qwen2.5-3B-Instruct-Q4_K_M`, chat-only —
 a CPU coder is too slow to bother with; swap to a 7B via
 `FALLBACK_MODEL_FILE` for more standalone knowledge at fewer tok/s).
 
-The homelab **never** contacts the GPU box except through Open WebUI's
+The homelab **never** contacts the GPU system except through Open WebUI's
 normal model-list / completion calls — no health poll, no wake-on-LAN.
 `AIOHTTP_CLIENT_TIMEOUT_MODEL_LIST` (compose, default 5 s) caps how long a
-powered-off box can stall the dropdown.
+powered-off system can stall the dropdown.
 
 Model IDs: the remote advertises `chat` / `code`; the local fallback is
 `chat-cpu` — distinct on purpose, so the dropdown always shows which one
@@ -114,6 +115,25 @@ you're on.
 
 Reverting `hybrid` → `remote` is a `backend.env` edit + `stop`/`start`,
 no rebuild. The `cpu` binary stays in the image, unused.
+
+### GPU-less host
+
+`docker-compose.yml` always mounts `/dev/kfd` + `/dev/dri` and joins the
+`video`/`render` groups on `model-server` — needed for `local`, dead
+weight (but a hard startup failure) on a system with no AMD GPU, which is the
+normal hybrid deploy. Fix once:
+
+```
+cp docker-compose.override.yml.example docker-compose.override.yml
+```
+
+Compose auto-loads `docker-compose.override.yml` from the repo root; it
+`!reset`s the device/group wiring for `model-server` only. The live file
+is gitignored (host-specific, like `.env` / `backend.env`); a homelab
+instance typically extends it with `restart:` and volume-path overrides.
+Do **not** use it in `local` mode — it removes the GPU access `local`
+needs. (`remote` never starts `model-server`, so it neither needs nor is
+harmed by the override.)
 
 ### Setting up the remote machine
 
