@@ -75,7 +75,9 @@ services:
     networks:
       - ai-net
     ports:
-      - "3000:8080"
+      # Host port is overridable (OWUI_PORT in .env) for systems where 3000
+      # is already taken — e.g. a homelab box running another dashboard.
+      - "${OWUI_PORT:-3000}:8080"
     volumes:
       # Chat history, accounts, uploads, vector DB, embedder cache. Override
       # OWUI_DATA_DIR (e.g. /srv/localaichat/open-webui) for durable storage.

@@ -92,6 +92,21 @@ esac
 # ai-net: idempotent; a naming convention, not a repo dependency.
 docker network inspect ai-net >/dev/null 2>&1 || docker network create ai-net
 
+# model-server runs from a locally-built image that is never pushed to a
+# registry. local/hybrid bring it up; if it was never built, `docker compose
+# up` tries to *pull* it and dies with an opaque "pull access denied".
+if [[ "$BACKEND_MODE" == "local" || "$BACKEND_MODE" == "hybrid" ]] \
+   && ! docker image inspect localaichat-model-server:latest >/dev/null 2>&1; then
+  echo "ERROR: image 'localaichat-model-server:latest' not found - build it on"
+  echo "       this system first (it is never pulled from a registry):"
+  echo
+  echo "         docker compose build"
+  echo
+  echo "       then re-run this script. (local mode: scripts/setup.sh also does"
+  echo "       this as part of first-run setup.)"
+  exit 1
+fi
+
 # Not sized to run alongside BookTranslator on a shared GPU. No-op if BT
 # isn't installed. Irrelevant in remote mode (nothing runs on this GPU).
 if [[ "$BACKEND_MODE" == "local" ]] && docker ps --format '{{.Names}}' | grep -q '^booktranslator-'; then
@@ -116,8 +131,11 @@ fi
 
 "${up_cmd[@]}"
 echo
+# OWUI_PORT lives in .env (read by compose, not sourced here) - pull it out
+# just for this message so the URL is right on a remapped host.
+owui_port=$(grep -E '^OWUI_PORT=' .env 2>/dev/null | tail -1 | cut -d= -f2)
 echo "LocalAIChat is up - $target_msg"
-echo "Open WebUI: http://localhost:3000"
+echo "Open WebUI: http://localhost:${owui_port:-3000}"
 if [[ "$BACKEND_MODE" == "local" || "$BACKEND_MODE" == "hybrid" ]]; then
   echo "First run downloads the model(s) into the models dir - follow with:"
   echo "  docker compose logs -f model-server"

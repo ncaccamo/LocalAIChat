@@ -75,6 +75,7 @@ reference + the remote-machine (Windows) setup:
 Open **http://localhost:3000**, create an account (local, stays on the
 system), and pick a model from the dropdown:
 
+
 - **`gpt-oss-20b`** — general chat / reasoning
 - **`qwen2.5-coder-14b`** — coding
 
@@ -92,6 +93,10 @@ message bar before sending (it resets per chat session). See
 bash scripts/start.sh    # bring the stack up
 bash scripts/stop.sh     # stop it, free the GPU
 ```
+
+If port 3000 is already in use on this system (a homelab box running
+another dashboard, say), set `OWUI_PORT` in `.env` — the URL shifts with
+it.
 
 Everything is `restart: "no"` — nothing auto-starts; `start.sh` /
 `stop.sh` are the only entry points. Open WebUI persists accounts, chats,
