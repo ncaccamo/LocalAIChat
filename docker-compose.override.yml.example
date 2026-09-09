@@ -1,0 +1,27 @@
+# Compose override for LocalAIChat HYBRID mode on a host with no AMD GPU.
+#
+# hybrid = the chat/code models run on a remote llama-server (the GPU
+# box); model-server here runs ONLY the always-on CPU fallback (chat-cpu).
+# It still has to start, but with no GPU it must not mount /dev/kfd or
+# join the video/render groups.
+#
+#   local  - needs the GPU here. Do NOT use this override.
+#   remote - scripts/start.sh brings up open-webui + searxng only
+#            (--no-deps) and removes model-server, so it never starts and
+#            this override is not needed.
+#   hybrid - model-server starts on the CPU binary -> needs this.
+#
+# Use it:
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+# Compose auto-loads docker-compose.override.yml from the project root.
+# The live file is git-ignored (host-specific, like .env / backend.env).
+#
+# Without it, `scripts/start.sh` in hybrid mode dies with:
+#   error gathering device information ... /dev/kfd: no such file or directory
+#
+# `!reset` needs Compose v2.24+ (Jan 2024). On older Compose, instead
+# delete the `devices:` / `group_add:` blocks from docker-compose.yml.
+services:
+  model-server:
+    devices: !reset []
+    group_add: !reset []

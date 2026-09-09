@@ -3,3 +3,6 @@ config/
 backend.env
 __pycache__/
 *.gguf
+
+# Host-specific compose override (hybrid on a GPU-less host). .example is tracked.
+docker-compose.override.yml
