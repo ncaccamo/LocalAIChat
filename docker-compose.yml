@@ -127,6 +127,23 @@ services:
       # ~90 MB, pulled into config/open-webui/ on first web search.
       - RAG_EMBEDDING_ENGINE=
       - RAG_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+      # Auxiliary generation + UX. Env-authoritative (ENABLE_PERSISTENT_CONFIG
+      # above), so pinned here — the Admin UI toggles for these don't stick.
+      # Each *_GENERATION is a hidden model call; the disabled ones keep the
+      # single loaded model (or the hybrid CPU fallback) free for real chat.
+      - ENABLE_FOLLOW_UP_GENERATION=${ENABLE_FOLLOW_UP_GENERATION:-false}
+      - ENABLE_TAGS_GENERATION=${ENABLE_TAGS_GENERATION:-false}
+      - ENABLE_AUTOCOMPLETE_GENERATION=${ENABLE_AUTOCOMPLETE_GENERATION:-false}
+      # Kept on: chat auto-naming, and the web-search query rewriter.
+      - ENABLE_TITLE_GENERATION=${ENABLE_TITLE_GENERATION:-true}
+      - ENABLE_SEARCH_QUERY_GENERATION=${ENABLE_SEARCH_QUERY_GENERATION:-true}
+      # No outbound beyond web search; no ad-hoc endpoints; OpenAI path only.
+      - ENABLE_COMMUNITY_SHARING=${ENABLE_COMMUNITY_SHARING:-false}
+      - ENABLE_USER_WEBHOOKS=${ENABLE_USER_WEBHOOKS:-false}
+      - ENABLE_DIRECT_CONNECTIONS=${ENABLE_DIRECT_CONNECTIONS:-false}
+      - ENABLE_OLLAMA_API=${ENABLE_OLLAMA_API:-false}
+      # Empty the new-chat splash cards.
+      - DEFAULT_PROMPT_SUGGESTIONS=${OWUI_PROMPT_SUGGESTIONS:-[]}
     depends_on:
       - model-server
       - searxng

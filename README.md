@@ -169,6 +169,20 @@ Open WebUI config here is **env-authoritative** —
 from env every start and the Admin UI's copies of those settings don't
 stick. Chat history and accounts are unaffected.
 
+### Interface / background generation
+
+Same deal — set in `.env`, not the Admin UI. Shipped defaults turn off the
+hidden per-message model calls (follow-up suggestions, auto-tagging,
+input-box autocomplete) and the outbound extras (openwebui.com sharing,
+user webhooks, ad-hoc API connections, the Ollama probe); chat
+auto-naming and the web-search query rewriter stay on.
+`OWUI_PROMPT_SUGGESTIONS=[]` clears the new-chat splash cards. Full list
+with per-var comments in `.env.example`.
+
+Your **personal** Settings (theme, language, per-user system prompt, the
+per-account follow-up toggle) are stored per user and *do* persist — only
+the global **Admin → Settings** panel is env-driven.
+
 ---
 
 ## How it works
