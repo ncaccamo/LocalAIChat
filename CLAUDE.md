@@ -27,9 +27,17 @@ Ubuntu 24.04+ (tested on 24.04), kernel ≥ 6.12 for the in-kernel amdgpu
 driver. `FROM ubuntu:24.04` is the image's pin, not the host's.
 
 ## Key invariants — don't violate without a deliberate decision
-- `restart: "no"` everywhere. On-demand, not a long-running service.
-  `scripts/start.sh` / `scripts/stop.sh` are the only entry points;
-  nothing auto-starts.
+- **`restart: "no"` in the base `docker-compose.yml`** — on-demand by
+  default, `scripts/start.sh` / `scripts/stop.sh` the only entry points,
+  nothing auto-starts. A deployment *opts into* always-on
+  (`restart: unless-stopped`, survives reboot) through
+  `docker-compose.override.yml`, and only when that box's GPU is
+  dedicated to this: homelab `remote` / `hybrid` and a dedicated local
+  inference server run always-on; `local` on a multipurpose box (gaming
+  PC / workstation) stays on-demand so games and boot aren't disrupted.
+  `restart:` policy and llama-swap `ttl` (idle-model unload) are separate
+  knobs — full scheme in README "Lifecycle" and `docs/remote-gpu.md`.
+  Don't re-assert "`restart: "no"` everywhere" as universal.
 - **One llama-swap process on `:11500`**, one model resident at a time
   (16 GB can't hold both). Open WebUI's dropdown drives the swap. Don't
   reintroduce two static per-model servers.

@@ -37,8 +37,11 @@ re-litigating. Session-by-session narrative lives in `git log`.
   table in `webui.db` is bypassed. Chat history + accounts still persist.
   `ENABLE_SIGNUP=false` is now set explicitly (it used to live only in
   that bypassed table).
-- **Container:** `restart: "no"`, runs as the host UID, comes up and
-  starts llama-swap (local mode) or isn't created at all (remote mode).
+- **Container:** base compose ships `restart: "no"` (on-demand); a
+  dedicated deployment opts into `restart: unless-stopped` via
+  `docker-compose.override.yml` — see "Deployment lifecycle" in
+  `docs/remote-gpu.md`. Runs as the host UID; comes up and starts
+  llama-swap (local mode) or isn't created at all (remote mode).
 - **Host has no ROCm / Vulkan / Mesa.** All of it is in the image. The
   host only needs the in-kernel `amdgpu` driver (`/dev/kfd`, `/dev/dri`)
   and `render`/`video` group membership. Host ROCm was removed 2026-08-27
@@ -168,7 +171,14 @@ PC's address at rest.
 - **`scripts/start.sh` owns mode logic.** No pipeline scripts here (Open
   WebUI is the only client), so start.sh sources `backend.env`, validates,
   and brings up the right services. Compose stays declarative.
-- **`restart: "no"` everywhere.** On-demand, not a long-running service.
+- **`restart: "no"` in the base compose; always-on is an opt-in per
+  deployment.** On-demand is the default and stays it for a workstation.
+  Always-on (`restart: unless-stopped` via `docker-compose.override.yml`)
+  is for deployments whose GPU is dedicated — homelab `remote` / `hybrid`,
+  or a single-purpose local inference server. A `local` box that also
+  games stays manual. `restart:` policy and llama-swap `ttl` (idle-model
+  unload, currently hardcoded `ttl: 0`) are separate knobs. Full scheme:
+  "Deployment lifecycle" in `docs/remote-gpu.md`.
 - **Independent from BookTranslator at the setup level.** No shared image,
   compose, or code. The ROCm/Vulkan build stage is duplicated on purpose;
   re-sync via `BackendBuildstage/sync_to_product.sh` when it changes.

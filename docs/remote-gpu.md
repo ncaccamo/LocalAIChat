@@ -183,6 +183,58 @@ matching `REMOTE_HOST` / `REMOTE_PORT` / `REMOTE_API_KEY` and run
 
 ---
 
+## Deployment lifecycle — on-demand vs. always-on
+
+The base `docker-compose.yml` ships `restart: "no"` on all three
+services: on-demand, `scripts/start.sh` / `scripts/stop.sh` the only
+entry points, nothing back after a reboot. That is the right default for
+a workstation and stays the default. Whether a particular deployment
+should instead run **always-on** turns on one question — **is this box's
+GPU dedicated to LocalAIChat, or shared with other work** — and two
+independent knobs: the compose `restart:` policy, and llama-swap's `ttl`
+(seconds of idle before a loaded model is unloaded and its VRAM freed;
+`0` = never).
+
+| Deployment | GPU on this box | `restart:` | `ttl` | Lifecycle |
+|---|---|---|---|---|
+| **Homelab** (`remote` / `hybrid`) | none — GPU is a separate machine (or only the tiny `chat-cpu` fallback runs here) | `unless-stopped` | n/a locally; the remote owns its own | boots with the host. The remote GPU machine is still started by hand — same on-demand pattern, just on the other box. |
+| **Dedicated local server** (`local`) | yes, and the box does nothing else | `unless-stopped` | non-zero — let an idle model release VRAM even though the stack stays up | boots with the host |
+| **Multipurpose box** (`local` on a gaming PC / workstation) | yes, shared with games / other GPU work | `"no"` (the shipped default) | optional non-zero — lets you leave the stack up between chat sessions without a model squatting in VRAM | manual `scripts/start.sh` / `scripts/stop.sh`; **never auto-resurrects on boot** |
+
+**Why GPU ownership decides it.** The homelab always-on component
+(`open-webui` + `searxng`, plus `model-server` on the CPU-only binary in
+`hybrid`) never touches a GPU, so always-on costs a little RAM and
+nothing else — a clear win for "there when I want it". On a box whose GPU
+is shared, the always-on container *is* the GPU holder; `restart:
+unless-stopped` also means the stack comes back on every boot, so you
+boot to game and the inference stack is running anyway. Manual
+start/stop is the explicit "the GPU is mine again" boundary.
+
+**Why `ttl` is not a full substitute for stopping.** A non-zero `ttl`
+unloads *idle* models, but any incoming request — a stray Open WebUI tab,
+the dropdown polling `/v1/models`, a phone left logged in — still
+triggers a full model load: a CPU + disk + PCIe spike, not just VRAM.
+With the stack down that request has nothing to hit. So `ttl` is a good
+fit for a *dedicated* server (frees VRAM between uses, no one else cares
+about a background load) and a convenience on a *multipurpose* box (leave
+it up within an uptime), but it does not make always-on safe there.
+
+**Applying it.** Always-on is opt-in and host-specific:
+
+```
+cp docker-compose.override.yml.example docker-compose.override.yml
+```
+
+The shipped example sets `restart: unless-stopped` on all three services
+(and `!reset`s `model-server`'s GPU wiring for a GPU-less `hybrid` host —
+see [GPU-less host](#gpu-less-host)). Delete the three `restart:` lines to
+keep the on-demand default. `ttl` currently has no env knob — it is
+written as `ttl: 0` into the llama-swap config `docker/entrypoint.sh`
+generates (both the `local` and `hybrid` heredocs); change that value and
+`docker compose build` for idle-unload.
+
+---
+
 The full cross-project design + rationale is in
 `BackendBuildstage/BACKEND_SELECTION_HANDOFF.md`. What's been verified
 here is in `docs/STATUS.md`.
