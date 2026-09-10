@@ -54,6 +54,21 @@ esac
 LISTEN_PORT="${LISTEN_PORT:-11500}"
 MODELS_DIR="${MODELS_DIR:-/models}"
 
+# Dropdown label for a model: the .gguf's basename with the extension and a
+# trailing quant tag trimmed, plus an optional role suffix. Open WebUI shows
+# llama-swap's `name` field verbatim, so this is what the user sees and picks
+# -- derived from the actual file in use, never a hardcoded guess.
+#   friendly_name /models/gpt-oss-20b.gguf "(chat)"          -> gpt-oss-20b (chat)
+#   friendly_name /models/Qwen2.5-3B-Instruct-Q4_K_M.gguf "(CPU)" -> Qwen2.5-3B-Instruct (CPU)
+friendly_name () {
+    local n="${1##*/}"; n="${n%.gguf}"
+    if [[ "$n" =~ ^(.+)[-.](I?Q[0-9]+([_-][0-9A-Za-z]+)*|f16|bf16|fp16|f32)$ ]]; then
+        n="${BASH_REMATCH[1]}"
+    fi
+    [ -n "${2:-}" ] && n="$n $2"
+    printf '%s' "$n"
+}
+
 # ---------------------------------------------------------------------------
 # 0b. Hybrid mode -- serve ONLY the always-on CPU fallback, then exec.
 # ---------------------------------------------------------------------------
@@ -94,14 +109,10 @@ if [ "$BACKEND_MODE" = "hybrid" ]; then
     fi
     echo "[OK] fallback model: $FALLBACK_MODEL_PATH"
 
-    # Dropdown label: the model file's name, trailing quant tag trimmed,
-    # with "(CPU)" appended -- e.g. Qwen2.5-3B-Instruct-Q4_K_M.gguf shows
-    # as "Qwen2.5-3B-Instruct (CPU)". The API id stays "chat-cpu".
-    _fb_name="${FALLBACK_MODEL_PATH##*/}"; _fb_name="${_fb_name%.gguf}"
-    if [[ "$_fb_name" =~ ^(.+)[-.](I?Q[0-9]+([_-][0-9A-Za-z]+)*|f16|bf16|fp16|f32)$ ]]; then
-        _fb_name="${BASH_REMATCH[1]}"
-    fi
-    FALLBACK_MODEL_NAME="$_fb_name (CPU)"
+    # Dropdown label -- file's name with "(CPU)" appended, e.g.
+    # Qwen2.5-3B-Instruct-Q4_K_M.gguf -> "Qwen2.5-3B-Instruct (CPU)".
+    # The API id stays "chat-cpu".
+    FALLBACK_MODEL_NAME="$(friendly_name "$FALLBACK_MODEL_PATH" "(CPU)")"
 
     CFG=/tmp/llama-swap.config.yaml
     cat > "$CFG" <<EOF
@@ -222,6 +233,11 @@ CODE_MODEL_PATH="$(resolve_model "$CODE_MODEL_PATH" '*qwen2.5*coder*14b*.gguf')"
 fetch_if_missing "$CHAT_MODEL_PATH" "$CHAT_MODEL_URL" "chat model"
 fetch_if_missing "$CODE_MODEL_PATH" "$CODE_MODEL_URL" "code model"
 
+# Dropdown labels from the resolved files -- "gpt-oss-20b (chat)" etc. The
+# API ids stay "chat" / "code" (Open WebUI keys routing off those).
+CHAT_MODEL_NAME="$(friendly_name "$CHAT_MODEL_PATH" "(chat)")"
+CODE_MODEL_NAME="$(friendly_name "$CODE_MODEL_PATH" "(code)")"
+
 # ---------------------------------------------------------------------------
 # 4. Generate llama-swap config
 # ---------------------------------------------------------------------------
@@ -239,7 +255,7 @@ startPort: 5800
 
 models:
   "chat":
-    name: "gpt-oss-20b (chat)"
+    name: "$CHAT_MODEL_NAME"
     cmd: |
       $LLAMA_SERVER_BIN
       --model $CHAT_MODEL_PATH
@@ -251,7 +267,7 @@ models:
     ttl: 0
 
   "code":
-    name: "qwen2.5-coder-14b (code)"
+    name: "$CODE_MODEL_NAME"
     cmd: |
       $LLAMA_SERVER_BIN
       --model $CODE_MODEL_PATH
@@ -266,8 +282,8 @@ echo "========================================================"
 echo "  LocalAIChat model-server"
 echo "  Mode    : $BACKEND_MODE"
 echo "  Backend : $LLAMA_BACKEND  ($LLAMA_SERVER_BIN)"
-echo "  chat    : $CHAT_MODEL_PATH (ctx $CHAT_CTX)"
-echo "  code    : $CODE_MODEL_PATH (ctx $CODE_CTX)"
+echo "  chat    : $CHAT_MODEL_PATH (ctx $CHAT_CTX)  -> shows as \"$CHAT_MODEL_NAME\""
+echo "  code    : $CODE_MODEL_PATH (ctx $CODE_CTX)  -> shows as \"$CODE_MODEL_NAME\""
 echo "  Listen  : 0.0.0.0:$LISTEN_PORT  (OpenAI-compatible, via llama-swap)"
 echo "  Models load on demand -- only one resident at a time."
 echo "========================================================"

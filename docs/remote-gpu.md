@@ -111,7 +111,13 @@ powered-off system can stall the dropdown.
 
 Model IDs: the remote advertises `chat` / `code`; the local fallback is
 `chat-cpu` — distinct on purpose, so the dropdown always shows which one
-you're on.
+you're on. Open WebUI displays each model's `name` field (from the
+upstream `/v1/models`) and falls back to the id when there is none — so a
+remote llama-swap whose models carry only keys shows a bare `chat` /
+`code`. Give them `name:` fields to see the real model in the dropdown
+(see [Setting up the remote machine](#setting-up-the-remote-machine));
+the local `chat-cpu` already reports `name` = its file (e.g.
+`Qwen2.5-3B-Instruct (CPU)`).
 
 Reverting `hybrid` → `remote` is a `backend.env` edit + `stop`/`start`,
 no rebuild. The `cpu` binary stays in the image, unused.
@@ -129,9 +135,10 @@ cp docker-compose.override.yml.example docker-compose.override.yml
 
 Compose auto-loads `docker-compose.override.yml` from the repo root; it
 `!reset`s the device/group wiring for `model-server` only. The live file
-is gitignored (host-specific, like `.env` / `backend.env`); a homelab
-instance typically extends it with `restart:` and volume-path overrides.
-Do **not** use it in `local` mode — it removes the GPU access `local`
+is gitignored (host-specific, like `.env` / `backend.env`); add other
+host-specific tweaks here if needed (a `restart:` policy, say — but set
+model / data paths via `LLM_MODELS_DIR` / `OWUI_DATA_DIR` in `.env`, not
+here). Do **not** use it in `local` mode — it removes the GPU access `local`
 needs. (`remote` never starts `model-server`, so it neither needs nor is
 harmed by the override.)
 
@@ -148,6 +155,21 @@ there.
    ```
    llama-server.exe -m your_model.gguf --host 0.0.0.0 --port 11500 --api-key <shared-secret>
    ```
+   A bare `llama-server` serves one model; to offer several (and to match
+   this project's `chat` / `code` ids) run **llama-swap** there instead.
+   Give each entry a `name:` so the homelab dropdown shows the real model,
+   not a bare `chat` / `code`:
+   ```yaml
+   models:
+     "chat":
+       name: "gpt-oss-20b"
+       cmd: llama-server.exe -m ...\gpt-oss-20b.gguf --port ${PORT} --api-key <shared-secret>
+     "code":
+       name: "qwen2.5-coder-14b"
+       cmd: llama-server.exe -m ...\Qwen2.5-Coder-14B-Instruct-Q5_K_M.gguf --port ${PORT} --api-key <shared-secret>
+   ```
+   Keep the ids `chat` / `code` — hybrid mode needs them distinct from the
+   local `chat-cpu`.
 3. Firewall: allow inbound TCP on that port, ideally scoped to this
    machine's IP rather than the whole LAN.
 4. Give the remote a static IP / DHCP reservation so `REMOTE_HOST`
