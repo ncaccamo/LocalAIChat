@@ -21,7 +21,16 @@
 #
 # `!reset` needs Compose v2.24+ (Jan 2024). On older Compose, instead
 # delete the `devices:` / `group_add:` blocks from docker-compose.yml.
+#
+# restart: unless-stopped on all three services -> a hybrid deployment survives
+# reboots. docker-compose.yml ships restart: "no" (the upstream on-demand
+# default); delete these three lines to get that back.
 services:
   model-server:
+    restart: unless-stopped
     devices: !reset []
     group_add: !reset []
+  open-webui:
+    restart: unless-stopped
+  searxng:
+    restart: unless-stopped
