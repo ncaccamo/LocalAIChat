@@ -94,11 +94,11 @@ bash scripts/start.sh    # bring the stack up
 bash scripts/stop.sh     # stop it, free the GPU
 ```
 
-If port 3000 is already in use on this system (a homelab box running
+If port 3000 is already in use on this system (a homelab system running
 another dashboard, say), set `OWUI_PORT` in `.env` — the URL shifts with
 it.
 
-Out of the box everything is `restart: "no"` — nothing auto-starts;
+By default everything is `restart: "no"` — nothing auto-starts;
 `start.sh` / `stop.sh` are the only entry points. A dedicated deployment
 can opt into always-on instead; see
 [Lifecycle: on-demand vs. always-on](#lifecycle-on-demand-vs-always-on).
@@ -151,15 +151,15 @@ Full reference incl. the remote-machine setup:
 The base `docker-compose.yml` ships `restart: "no"` on every service —
 the on-demand default: `scripts/start.sh` brings the stack up,
 `scripts/stop.sh` takes it down, nothing returns after a reboot. Whether
-a deployment *should* stay always-on comes down to **who owns that box's
-GPU**. `restart:` policy and llama-swap's `ttl` (unload an idle model to
-free VRAM) are independent knobs:
+a deployment *should* stay always-on comes down to **who owns that
+system's GPU**. `restart:` policy and llama-swap's `ttl` (unload an idle
+model to free VRAM) are independent knobs:
 
-| Deployment | GPU on this box | `restart:` | llama-swap `ttl` | Lifecycle |
+| Deployment | GPU on this system | `restart:` | llama-swap `ttl` | Lifecycle |
 |---|---|---|---|---|
-| **Homelab** — `remote` / `hybrid` | none (or just the CPU fallback) | `unless-stopped` | n/a locally | boots with the host; you still start the remote GPU machine by hand |
-| **Dedicated local server** — `local`, box does nothing else | yes, single-purpose | `unless-stopped` | non-zero — free VRAM when idle | boots with the host |
-| **Multipurpose box** — `local` on a gaming PC / workstation | yes, shared with games / other work | `"no"` (default) | optional non-zero | manual `start.sh` / `stop.sh`; never auto-resurrects on boot |
+| **Homelab** — `remote` / `hybrid` | none (or just the CPU fallback) | `unless-stopped` | n/a locally | boots with the host; you still start the remote GPU system by hand |
+| **Dedicated local server** — `local`, system does nothing else | yes, single-purpose | `unless-stopped` | non-zero — free VRAM when idle | boots with the host |
+| **Multipurpose system** — `local` on a gaming PC / workstation | yes, shared with games / other work | `"no"` (default) | optional non-zero | manual `start.sh` / `stop.sh`; never auto-resurrects on boot |
 
 Always-on is opt-in: `cp docker-compose.override.yml.example
 docker-compose.override.yml` (gitignored, auto-loaded) — it sets
@@ -170,9 +170,9 @@ GPU wiring for a GPU-less `hybrid` host.
 `ttl` is currently hardcoded `ttl: 0` (never unload) in the llama-swap
 config `docker/entrypoint.sh` generates; set a non-zero seconds value
 there for the dedicated / multipurpose local cases (next request reloads
-the model — seconds, warm). It **narrows** GPU contention on a shared box
-but doesn't remove it — any request still triggers a full load — which is
-why a multipurpose box stays manual rather than always-on.
+the model — seconds, warm). It **narrows** GPU contention on a shared
+system but doesn't remove it — any request still triggers a full load —
+which is why a multipurpose system stays manual rather than always-on.
 
 ### Web search
 

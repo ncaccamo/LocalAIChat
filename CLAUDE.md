@@ -31,10 +31,11 @@ driver. `FROM ubuntu:24.04` is the image's pin, not the host's.
   default, `scripts/start.sh` / `scripts/stop.sh` the only entry points,
   nothing auto-starts. A deployment *opts into* always-on
   (`restart: unless-stopped`, survives reboot) through
-  `docker-compose.override.yml`, and only when that box's GPU is
+  `docker-compose.override.yml`, and only when that system's GPU is
   dedicated to this: homelab `remote` / `hybrid` and a dedicated local
-  inference server run always-on; `local` on a multipurpose box (gaming
-  PC / workstation) stays on-demand so games and boot aren't disrupted.
+  inference server run always-on; `local` on a multipurpose system
+  (gaming PC / workstation) stays on-demand so games and boot aren't
+  disrupted.
   `restart:` policy and llama-swap `ttl` (idle-model unload) are separate
   knobs — full scheme in README "Lifecycle" and `docs/remote-gpu.md`.
   Don't re-assert "`restart: "no"` everywhere" as universal.

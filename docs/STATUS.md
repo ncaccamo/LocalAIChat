@@ -175,7 +175,7 @@ PC's address at rest.
   deployment.** On-demand is the default and stays it for a workstation.
   Always-on (`restart: unless-stopped` via `docker-compose.override.yml`)
   is for deployments whose GPU is dedicated — homelab `remote` / `hybrid`,
-  or a single-purpose local inference server. A `local` box that also
+  or a single-purpose local inference server. A `local` system that also
   games stays manual. `restart:` policy and llama-swap `ttl` (idle-model
   unload, currently hardcoded `ttl: 0`) are separate knobs. Full scheme:
   "Deployment lifecycle" in `docs/remote-gpu.md`.
