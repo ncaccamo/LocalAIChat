@@ -144,6 +144,19 @@ services:
       - ENABLE_OLLAMA_API=${ENABLE_OLLAMA_API:-false}
       # Empty the new-chat splash cards.
       - DEFAULT_PROMPT_SUGGESTIONS=${OWUI_PROMPT_SUGGESTIONS:-[]}
+      # Image generation (optional) -- a stable-diffusion.cpp `sd-server` on
+      # the remote GPU system, using its AUTOMATIC1111-compatible API
+      # surface (a wire-protocol choice, not the actual legacy AUTOMATIC1111
+      # webui). This repo doesn't run or manage it, same as the chat/code
+      # remote -- see docs/remote-gpu.md "Image generation". Off by default:
+      # nothing answers at AUTOMATIC1111_BASE_URL on a fresh clone.
+      - ENABLE_IMAGE_GENERATION=${ENABLE_IMAGE_GENERATION:-false}
+      - IMAGE_GENERATION_ENGINE=${IMAGE_GENERATION_ENGINE:-automatic1111}
+      - AUTOMATIC1111_BASE_URL=${AUTOMATIC1111_BASE_URL:-}
+      # Off: an image request goes straight to the diffusion model's own
+      # prompt encoder -- no hidden call to the chat model to rewrite the
+      # prompt first, and no extra swap on a shared remote GPU.
+      - ENABLE_IMAGE_PROMPT_GENERATION=${ENABLE_IMAGE_PROMPT_GENERATION:-false}
     depends_on:
       - model-server
       - searxng

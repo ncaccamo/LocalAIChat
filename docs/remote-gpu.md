@@ -183,6 +183,43 @@ matching `REMOTE_HOST` / `REMOTE_PORT` / `REMOTE_API_KEY` and run
 
 ---
 
+## Image generation (optional)
+
+Open WebUI can drive image generation from the same chat interface, through
+a second, independent backend — unrelated to the `chat` / `code` endpoints
+above. `ENABLE_IMAGE_GENERATION` / `IMAGE_GENERATION_ENGINE` /
+`AUTOMATIC1111_BASE_URL` (`.env`) are all this repo owns; the backend itself
+runs entirely outside it — same "no code from this repo lives there"
+boundary as the remote llama-server.
+
+Recommended engine: **[stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp)**'s
+`sd-server` — same `ggml` foundation as llama.cpp, Vulkan-native (no
+ROCm / PyTorch / DirectML detour needed on a Windows remote), and GGUF
+weight support for the same quantize-to-fit-VRAM tradeoff already used for
+`chat` / `code`. It exposes a compatibility API at `/sdapi/v1/...`, which
+is what `IMAGE_GENERATION_ENGINE=automatic1111` means below — a wire
+protocol, **not** the actual AUTOMATIC1111 webui (that project's last real
+commit was mid-2024; nothing from it runs here).
+
+```
+ENABLE_IMAGE_GENERATION=true
+IMAGE_GENERATION_ENGINE=automatic1111
+AUTOMATIC1111_BASE_URL=http://<remote-host>:<port>
+```
+
+`ENABLE_IMAGE_PROMPT_GENERATION` defaults **false**: Open WebUI can
+optionally have the currently-loaded chat model expand a short prompt
+before generating, but that pulls `chat`/`code` into every image request.
+Off means an image request never touches the chat model at all — no
+dependency, and no extra model swap if the remote serves both from one GPU.
+
+Whether `sd-server` runs as its own manually-started process or as another
+entry in an existing llama-swap instance on the remote is a deployment
+choice this repo doesn't make — see [Deployment lifecycle](#deployment-lifecycle--on-demand-vs-always-on)
+below for the on-demand-vs-always-on tradeoffs that apply either way.
+
+---
+
 ## Deployment lifecycle — on-demand vs. always-on
 
 The base `docker-compose.yml` ships `restart: "no"` on all three

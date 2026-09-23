@@ -214,6 +214,16 @@ Your **personal** Settings (theme, language, per-user system prompt, the
 per-account follow-up toggle) are stored per user and *do* persist — only
 the global **Admin → Settings** panel is env-driven.
 
+### Image generation
+
+Optional, and off by default — a second, independent backend on a remote
+system (this repo doesn't run or install it). `ENABLE_IMAGE_GENERATION=false`
+in `.env.example`; set it `true` along with `IMAGE_GENERATION_ENGINE` and
+`AUTOMATIC1111_BASE_URL` once you have something to point at. Full
+reference, including the recommended engine and why prompt-generation
+defaults off: **[Image generation](docs/remote-gpu.md#image-generation-optional)**
+in `docs/remote-gpu.md`.
+
 ---
 
 ## How it works
