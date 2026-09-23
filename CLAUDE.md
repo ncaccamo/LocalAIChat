@@ -86,8 +86,8 @@ driver. `FROM ubuntu:24.04` is the image's pin, not the host's.
 - Open WebUI pinned to `v0.11.0`, not `latest`.
 
 ## Where to look
-- `docs/STATUS.md` — current state, prioritized open items, decisions
-  worth not re-litigating. **Start here.**
+- `docs/STATUS.md` — prioritized open items, decisions worth not
+  re-litigating. **Start here.**
 - `README.md` — the user manual: install, use, configure.
 - `docs/remote-gpu.md` — `backend.env`, the `LLAMA_BACKEND`→binary
   mapping, remote-GPU mode + remote-machine setup.

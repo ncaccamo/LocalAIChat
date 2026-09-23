@@ -274,5 +274,5 @@ generates (both the `local` and `hybrid` heredocs); change that value and
 ---
 
 The full cross-project design + rationale is in
-`BackendBuildstage/BACKEND_SELECTION_HANDOFF.md`. What's been verified
-here is in `docs/STATUS.md`.
+`BackendBuildstage/BACKEND_SELECTION_HANDOFF.md`. Open items and
+decisions worth not re-litigating are in `docs/STATUS.md`.

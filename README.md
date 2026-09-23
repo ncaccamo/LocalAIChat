@@ -264,7 +264,7 @@ it never touches the product-specific tail below the markers.
 | `README.md` | this — install, use, configure |
 | [`docs/HOST_PREREQUISITES.md`](docs/HOST_PREREQUISITES.md) | bare-metal host setup for local mode — do this first (remote/hybrid need only §6) |
 | [`docs/remote-gpu.md`](docs/remote-gpu.md) | `backend.env`; local backend switching; remote + hybrid modes; remote-machine setup |
-| [`docs/STATUS.md`](docs/STATUS.md) | current state, open items, decisions worth not re-litigating |
+| [`docs/STATUS.md`](docs/STATUS.md) | open items, decisions worth not re-litigating |
 | `CLAUDE.md` | orientation + hard invariants for AI coding agents |
 
 Session history: `git log` (HANDOFF.md was retired 2026-08-27).
