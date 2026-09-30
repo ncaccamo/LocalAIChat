@@ -5,7 +5,7 @@
 # its product-specific tail. No external image dependency.
 #
 # Assumes: external network `ai-net` exists (scripts/start.sh creates it
-# idempotently if not — safe even if BookTranslator was never installed
+# idempotently if not — safe even if FencingManualTranslator was never installed
 # on this machine).
 #
 # Deliberately restart: "no" on every service — started/stopped
@@ -32,7 +32,7 @@ services:
     ports:
       - "11500:11500"   # OpenAI-compatible endpoint (llama-swap multiplexes chat + code)
     volumes:
-      # Shared with BookTranslator by convention — a directory mount, not
+      # Shared with FencingManualTranslator by convention — a directory mount, not
       # a repo/build dependency. A solo LocalAIChat system just creates it.
       # Override LLM_MODELS_DIR (e.g. /srv/localaichat/llm_models) on a system
       # where models don't live under the invoking user's home.

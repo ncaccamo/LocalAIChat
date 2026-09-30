@@ -9,7 +9,7 @@ cloud API calls. The one exception is the optional [web search](#web-search)
 through a self-hosted SearXNG container — still no third-party API.
 
 Tuned for an AMD RX 9070 XT (RDNA4, 16 GB) + Ryzen 7 5700X3D on Ubuntu
-24.04. Sibling project to `BookTranslator`, but **fully independent at the
+24.04. Sibling project to `FencingManualTranslator`, but **fully independent at the
 setup level** — either can be deployed alone on a machine that has never
 seen the other.
 
@@ -28,7 +28,7 @@ the image, which stays `FROM ubuntu:24.04` regardless of the host. Work
 through
 **[`docs/HOST_PREREQUISITES.md`](docs/HOST_PREREQUISITES.md)** once — it's
 `sudo apt` / kernel / BIOS steps on bare metal. Standalone, no dependency
-on BookTranslator's copy.
+on FencingManualTranslator's copy.
 
 ### 2. Setup
 
@@ -41,7 +41,7 @@ bash scripts/setup.sh
 ```
 
 First build compiles llama.cpp three times (ROCm + Vulkan + a portable
-CPU build): 25–35 min, much faster if BookTranslator's image is already
+CPU build): 25–35 min, much faster if FencingManualTranslator's image is already
 built (shared layers).
 
 ### Alternative: remote / hybrid on a GPU-less host
@@ -241,7 +241,7 @@ CPU model, `chat-cpu`; in `remote` it isn't started — see
 WebUI calls only when a message has web search toggled on. `start.sh`
 brings it up with the rest of the stack (in `remote` mode too).
 
-## Relationship to BookTranslator
+## Relationship to FencingManualTranslator
 
 Siblings, not a client/dependency pair. **Not shared:** base image,
 Dockerfile, compose, containers, code, host-prereqs doc. **Shared,

@@ -107,10 +107,10 @@ if [[ "$BACKEND_MODE" == "local" || "$BACKEND_MODE" == "hybrid" ]] \
   exit 1
 fi
 
-# Not sized to run alongside BookTranslator on a shared GPU. No-op if BT
+# Not sized to run alongside FencingManualTranslator on a shared GPU. No-op if FMT
 # isn't installed. Irrelevant in remote mode (nothing runs on this GPU).
-if [[ "$BACKEND_MODE" == "local" ]] && docker ps --format '{{.Names}}' | grep -q '^booktranslator-'; then
-  echo "WARNING: BookTranslator containers appear to be running."
+if [[ "$BACKEND_MODE" == "local" ]] && docker ps --format '{{.Names}}' | grep -q '^fmt-'; then
+  echo "WARNING: FencingManualTranslator containers appear to be running."
   echo "This GPU is not sized for both projects at once."
   if [[ "${ASSUME_YES:-}" == "1" ]]; then
     echo "(ASSUME_YES=1 — continuing)"

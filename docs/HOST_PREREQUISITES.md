@@ -1,9 +1,9 @@
 # LocalAIChat — Host Prerequisites
 
-Standalone copy — this file intentionally duplicates BookTranslator's
+Standalone copy — this file intentionally duplicates FencingManualTranslator's
 host-prerequisites doc rather than referencing it, so this project can be
-brought up on a machine that has never seen BookTranslator's repo. If you
-already ran through this checklist for BookTranslator on this same
+brought up on a machine that has never seen FencingManualTranslator's repo. If you
+already ran through this checklist for FencingManualTranslator on this same
 machine, you can skip straight to `README.md` Usage.
 
 **What the host does _not_ need:** ROCm, the Vulkan SDK, or Mesa. All

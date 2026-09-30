@@ -51,14 +51,14 @@ as a comment next to the code it explains (`docker/entrypoint.sh`,
   games stays manual. `restart:` policy and llama-swap `ttl` (idle-model
   unload, currently hardcoded `ttl: 0`) are separate knobs. Full scheme:
   "Deployment lifecycle" in `docs/remote-gpu.md`.
-- **Independent from BookTranslator at the setup level.** No shared image,
+- **Independent from FencingManualTranslator at the setup level.** No shared image,
   compose, or code. The ROCm/Vulkan build stage is duplicated on purpose;
   re-sync via `BackendBuildstage/sync_to_product.sh` when it changes.
-- **`~/llm_models` shared with BookTranslator** by directory convention
+- **`~/llm_models` shared with FencingManualTranslator** by directory convention
   only — not a repo/build dependency. A solo system just creates it.
-- **`backend.env` is related to BookTranslator's by convention, not kept
+- **`backend.env` is related to FencingManualTranslator's by convention, not kept
   identical.** The shared concepts (`BACKEND_MODE`, `LLAMA_BACKEND`,
   `REMOTE_*`) stay aligned where they overlap, but new modes are
-  per-product: LocalAIChat adds `hybrid`, BookTranslator does not (a CPU
+  per-product: LocalAIChat adds `hybrid`, FencingManualTranslator does not (a CPU
   chat fallback makes no sense for a batch pipeline). No need to mirror
   additions.

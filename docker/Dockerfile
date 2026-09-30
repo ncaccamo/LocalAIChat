@@ -1,6 +1,6 @@
 # LocalAIChat model-serving container — fully self-contained.
 #
-# This project is deliberately independent from BookTranslator at the
+# This project is deliberately independent from FencingManualTranslator at the
 # setup level: no shared base image, no shared build. The block delimited
 # by the BUILDSTAGE START / BUILDSTAGE END marker lines below is a synced
 # copy of BackendBuildstage/Dockerfile.buildstage (the reference ROCm
@@ -187,13 +187,13 @@ RUN for b in llama-server llama-cli llama-bench llama-qwen2vl-cli; do \
 
 # ============================================================
 # LocalAIChat-specific tail. NOTHING below this line is part of the synced
-# buildstage -- do not copy it back into BackendBuildstage or BookTranslator.
+# buildstage -- do not copy it back into BackendBuildstage or FencingManualTranslator.
 # ============================================================
 
 # llama-swap: an OpenAI-compatible proxy that keeps ONE llama-server
 # resident and hot-swaps it between the configured models on demand.
 # This is what makes the Open WebUI model dropdown load/unload models:
-# pick "code", llama-swap stops "chat" and starts "code". BookTranslator
+# pick "code", llama-swap stops "chat" and starts "code". FencingManualTranslator
 # does not need this (its pipeline scripts own server lifecycle), so it
 # lives here in the product tail rather than the shared buildstage.
 ARG LLAMA_SWAP_VERSION=251

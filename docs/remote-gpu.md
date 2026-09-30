@@ -22,7 +22,7 @@ FALLBACK_CTX=8192
 
 Only the variable groups its mode uses matter; the rest are ignored.
 
-Related to BookTranslator's `backend.env` by convention, not kept
+Related to FencingManualTranslator's `backend.env` by convention, not kept
 identical — the shared keys (`BACKEND_MODE`, `LLAMA_BACKEND`, `REMOTE_*`)
 stay aligned, but `hybrid` is LocalAIChat-only.
 

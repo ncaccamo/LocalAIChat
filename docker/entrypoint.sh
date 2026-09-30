@@ -3,7 +3,7 @@ set -euo pipefail
 
 # LocalAIChat model-server entrypoint.
 #
-# Unlike BookTranslator (whose pipeline scripts own server lifecycle), this
+# Unlike FencingManualTranslator (whose pipeline scripts own server lifecycle), this
 # project serves interactive chat through Open WebUI, so it needs a
 # long-lived front door. That front door is llama-swap: one
 # OpenAI-compatible listener on $LISTEN_PORT that hot-swaps a single

@@ -3,14 +3,14 @@
 ## What this is
 On-demand local chat / general-purpose LLM serving: Open WebUI in front of
 a self-contained model-serving container. Interactive use, unrelated to
-the `BookTranslator` translation pipeline. Runs fully locally, no cloud
+the `FencingManualTranslator` translation pipeline. Runs fully locally, no cloud
 API calls.
 
 ## Sibling projects — read this before assuming a dependency exists
 This repo is **fully self-contained** — it does not depend on
-`BookTranslator` or `BackendBuildstage` to build or run.
+`FencingManualTranslator` or `BackendBuildstage` to build or run.
 
-- `BookTranslator` — separate product, separate repo. No build or runtime
+- `FencingManualTranslator` — separate product, separate repo. No build or runtime
   dependency in either direction. Not run at the same time (shared GPU).
 - `BackendBuildstage` — offline sandbox for the ROCm/Vulkan/llama.cpp
   build stage. Never a build or runtime dependency. `docker/Dockerfile`
@@ -70,15 +70,15 @@ driver. `FROM ubuntu:24.04` is the image's pin, not the host's.
 - **Web search is opt-in per message** via the Open WebUI toggle — never
   the always-on global. It's the only outbound traffic the project makes;
   keep it that way.
-- `backend.env` is related to BookTranslator's by convention, not kept
+- `backend.env` is related to FencingManualTranslator's by convention, not kept
   identical. Shared concepts (`BACKEND_MODE`, `LLAMA_BACKEND`, `REMOTE_*`)
   stay aligned; new modes are per-product (LocalAIChat has `hybrid`,
-  BookTranslator does not).
+  FencingManualTranslator does not).
 - `entrypoint.sh` is `COPY`'d into the image (not mounted): changing it
   needs `docker compose build`. Switching `vulkan` ↔ `rocm7` afterward is
   `stop.sh`/`start.sh` only, no rebuild.
 - `docs/HOST_PREREQUISITES.md` is a full standalone copy, not a pointer to
-  BookTranslator's — keep it that way.
+  FencingManualTranslator's — keep it that way.
 - `scripts/setup.sh` = one-time (verify host prereqs, detect GPU GIDs →
   `.env`, build, up). `scripts/start.sh` = per-run bring-up (owns the
   `backend.env` mode logic). `setup.sh` calls `start.sh` at the end.
