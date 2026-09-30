@@ -28,7 +28,7 @@ also supported (see [Image generation](#image-generation)).
 9070 XT (RDNA4, 16 GB) on Ubuntu 24.04, plus a Windows GPU host in `remote`
 mode. The container is wired for AMD GPUs (`/dev/kfd`, `/dev/dri`); other
 GPUs are untested. The chat/code models and paths are defaults you'd
-expect to change. Provided as-is; forks welcome.
+expect to change.
 
 **Security:** intended for a trusted LAN. Open WebUI has accounts with
 signup closed by default, but the model endpoints use a placeholder key
@@ -97,6 +97,9 @@ system), and pick a model from the dropdown:
 
 - **`gpt-oss-20b`** — general chat / reasoning
 - **`qwen2.5-coder-14b`** — coding
+- **`chat-cpu`** (`hybrid` mode only) — a small always-on CPU model
+  (default `Qwen2.5-3B-Instruct`, Q4) that stays available when the remote
+  GPU system is off; slower and less capable, chat only
 
 Switching models in the dropdown unloads the running one and loads the
 other — only one is in VRAM at a time (the 16 GB card can't hold both).
@@ -137,6 +140,7 @@ rebuilds.
 |---|---|---|
 | `CHAT_MODEL_FILE` | `gpt-oss-20b.gguf` | file in `~/llm_models` |
 | `CODE_MODEL_FILE` | `Qwen2.5-Coder-14B-Instruct-Q5_K_M.gguf` | " |
+| `FALLBACK_MODEL_FILE` | `Qwen2.5-3B-Instruct-Q4_K_M.gguf` | `hybrid` only: the CPU model; set in `backend.env` |
 
 To use different models, set the filename here **and** the matching
 download URL in `docker/entrypoint.sh`, then `stop.sh` / `start.sh`.
