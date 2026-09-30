@@ -22,10 +22,6 @@ FALLBACK_CTX=8192
 
 Only the variable groups its mode uses matter; the rest are ignored.
 
-Related to FencingManualTranslator's `backend.env` by convention, not kept
-identical — the shared keys (`BACKEND_MODE`, `LLAMA_BACKEND`, `REMOTE_*`)
-stay aligned, but `hybrid` is LocalAIChat-only.
-
 ---
 
 ## Local mode
@@ -47,8 +43,9 @@ Switching `vulkan` ↔ `rocm7`: edit `backend.env`, then `scripts/stop.sh`
 already in the image.
 
 `rocm714` is a valid value from day one so nothing changes when it's
-un-parked. Until then it exits with a pointer to
-`BackendBuildstage/ROCM714_NOTES.md` rather than silently falling back.
+un-parked. Until then it exits with an error rather than silently falling back.
+It's parked because the ROCm 7.14 preview wheel ships no
+`hip-lang-config.cmake`, so CMake can't configure a HIP build.
 
 ---
 
@@ -121,6 +118,14 @@ the local `chat-cpu` already reports `name` = its file (e.g.
 
 Reverting `hybrid` → `remote` is a `backend.env` edit + `stop`/`start`,
 no rebuild. The `cpu` binary stays in the image, unused.
+
+**Why Open WebUI queries both endpoints directly:** the alternative was a
+local llama-swap that passes requests through to the remote. Rejected —
+llama-swap can't inject the remote's `Authorization` header, and its
+`/v1/models` would keep listing the GPU models even when the remote
+system is off, which defeats the point of hybrid. Likewise no coder model
+on the CPU side: a 14B coder runs at ~3 tok/s, not worth the always-on
+RAM/disk cost.
 
 ### GPU-less host
 
@@ -270,9 +275,3 @@ keep the on-demand default. `ttl` currently has no env knob — it is
 written as `ttl: 0` into the llama-swap config `docker/entrypoint.sh`
 generates (both the `local` and `hybrid` heredocs); change that value and
 `docker compose build` for idle-unload.
-
----
-
-The full cross-project design + rationale is in
-`BackendBuildstage/BACKEND_SELECTION_HANDOFF.md`. Open items and
-decisions worth not re-litigating are in `docs/STATUS.md`.

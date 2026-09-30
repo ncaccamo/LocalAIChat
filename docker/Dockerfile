@@ -1,14 +1,9 @@
 # LocalAIChat model-serving container — fully self-contained.
 #
-# This project is deliberately independent from FencingManualTranslator at the
-# setup level: no shared base image, no shared build. The block delimited
-# by the BUILDSTAGE START / BUILDSTAGE END marker lines below is a synced
-# copy of BackendBuildstage/Dockerfile.buildstage (the reference ROCm
-# 7.2.4 + Vulkan + llama.cpp build stage). Do NOT hand-edit it here:
-# change it in BackendBuildstage, smoke-test with that repo's
-# test-build.sh, then re-run  sync_to_product.sh <this-file>. Keeping a
-# synced copy rather than a shared image is what lets either product
-# deploy on a machine that has never seen the other.
+# The block delimited by the BUILDSTAGE START / BUILDSTAGE END marker lines
+# below is a vendored copy of the ROCm 7.2.4 + Vulkan + llama.cpp build
+# stage, maintained outside this repo and synced in verbatim. Do NOT
+# hand-edit it here; edit the product tail below the END marker instead.
 #
 # BUILDSTAGE START v2026.09.06  (ubuntu 24.04 | ROCm 7.2.4 apt | Vulkan
 # LunarG 1.4.357.1 | llama.cpp triple build rocm+vulkan+cpu | rocm714 parked)
@@ -185,15 +180,14 @@ RUN for b in llama-server llama-cli llama-bench llama-qwen2vl-cli; do \
 
 # ============================================================
 # LocalAIChat-specific tail. NOTHING below this line is part of the synced
-# buildstage -- do not copy it back into BackendBuildstage or FencingManualTranslator.
+# buildstage -- do not copy it back upstream.
 # ============================================================
 
 # llama-swap: an OpenAI-compatible proxy that keeps ONE llama-server
 # resident and hot-swaps it between the configured models on demand.
 # This is what makes the Open WebUI model dropdown load/unload models:
-# pick "code", llama-swap stops "chat" and starts "code". FencingManualTranslator
-# does not need this (its pipeline scripts own server lifecycle), so it
-# lives here in the product tail rather than the shared buildstage.
+# pick "code", llama-swap stops "chat" and starts "code". It lives here in
+# the product tail rather than the vendored buildstage.
 ARG LLAMA_SWAP_VERSION=251
 RUN wget -qO /tmp/llama-swap.tar.gz \
       "https://github.com/mostlygeek/llama-swap/releases/download/v${LLAMA_SWAP_VERSION}/llama-swap_${LLAMA_SWAP_VERSION}_linux_amd64.tar.gz" && \

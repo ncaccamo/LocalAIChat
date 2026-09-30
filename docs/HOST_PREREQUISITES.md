@@ -1,10 +1,7 @@
 # LocalAIChat — Host Prerequisites
 
-Standalone copy — this file intentionally duplicates FencingManualTranslator's
-host-prerequisites doc rather than referencing it, so this project can be
-brought up on a machine that has never seen FencingManualTranslator's repo. If you
-already ran through this checklist for FencingManualTranslator on this same
-machine, you can skip straight to `README.md` Usage.
+Bare-metal host setup for `local` mode. If you've already been through
+this checklist on this system, skip straight to `README.md` Usage.
 
 **What the host does _not_ need:** ROCm, the Vulkan SDK, or Mesa. All
 GPU userspace is compiled into the container image; the host contributes

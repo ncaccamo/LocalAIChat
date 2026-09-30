@@ -1,12 +1,11 @@
 # LocalAIChat — on-demand local chat / model serving
 #
 # Fully self-contained: docker/Dockerfile builds its own ROCm+Vulkan
-# llama.cpp stage (synced from BackendBuildstage), then adds llama-swap in
+# llama.cpp stage (vendored, see the Dockerfile header), then adds llama-swap in
 # its product-specific tail. No external image dependency.
 #
 # Assumes: external network `ai-net` exists (scripts/start.sh creates it
-# idempotently if not — safe even if FencingManualTranslator was never installed
-# on this machine).
+# idempotently if not).
 #
 # Deliberately restart: "no" on every service — started/stopped
 # explicitly, not run continuously. See README "Usage pattern".
@@ -32,8 +31,7 @@ services:
     ports:
       - "11500:11500"   # OpenAI-compatible endpoint (llama-swap multiplexes chat + code)
     volumes:
-      # Shared with FencingManualTranslator by convention — a directory mount, not
-      # a repo/build dependency. A solo LocalAIChat system just creates it.
+      # Model directory; created on first run if it doesn't exist.
       # Override LLM_MODELS_DIR (e.g. /srv/localaichat/llm_models) on a system
       # where models don't live under the invoking user's home.
       - ${LLM_MODELS_DIR:-~/llm_models}:/models

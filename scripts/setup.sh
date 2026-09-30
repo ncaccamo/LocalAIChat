@@ -119,7 +119,6 @@ fi
 echo
 echo "== 4/5  Build image =="
 echo "   First build compiles llama.cpp twice (ROCm + Vulkan): 20-30 min."
-echo "   Much faster if FencingManualTranslator's image is already built (shared layers)."
 docker compose build
 
 echo

@@ -35,7 +35,7 @@ case "$BACKEND_MODE" in
       rocm) echo "note: LLAMA_BACKEND=rocm accepted as an alias for rocm7." ;;
       rocm714)
         echo "backend.env: LLAMA_BACKEND=rocm714 is parked - not built into the image."
-        echo "Use vulkan or rocm7, or build rocm714 in BackendBuildstage first."
+        echo "Use vulkan or rocm7, (rocm714 is not built)."
         exit 1 ;;
       *)
         echo "backend.env: LLAMA_BACKEND='$LLAMA_BACKEND' invalid - want vulkan | rocm7 | rocm714."
@@ -105,22 +105,6 @@ if [[ "$BACKEND_MODE" == "local" || "$BACKEND_MODE" == "hybrid" ]] \
   echo "       then re-run this script. (local mode: scripts/setup.sh also does"
   echo "       this as part of first-run setup.)"
   exit 1
-fi
-
-# Not sized to run alongside FencingManualTranslator on a shared GPU. No-op if FMT
-# isn't installed. Irrelevant in remote mode (nothing runs on this GPU).
-if [[ "$BACKEND_MODE" == "local" ]] && docker ps --format '{{.Names}}' | grep -q '^fmt-'; then
-  echo "WARNING: FencingManualTranslator containers appear to be running."
-  echo "This GPU is not sized for both projects at once."
-  if [[ "${ASSUME_YES:-}" == "1" ]]; then
-    echo "(ASSUME_YES=1 — continuing)"
-  elif [[ -t 0 ]]; then
-    read -p "Continue anyway? [y/N] " -n 1 -r
-    echo
-    [[ $REPLY =~ ^[Yy]$ ]] || exit 1
-  else
-    echo "(non-interactive — continuing; set ASSUME_YES=1 to silence)"
-  fi
 fi
 
 # Tear down the model-server if we're going remote (compose up --no-deps

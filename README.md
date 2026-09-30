@@ -1,17 +1,38 @@
 # LocalAIChat
 
-On-demand local chat / general-purpose LLM serving: **Open WebUI** in
-front of a self-contained model-serving container (ROCm 7.2.4 + Vulkan +
-llama.cpp, with [llama-swap](https://github.com/mostlygeek/llama-swap) for
-on-demand model switching). Inference runs entirely on local hardware — no
-cloud API calls. The one exception is the optional [web search](#web-search)
-(off unless you toggle it on for a message), which reaches the internet
-through a self-hosted SearXNG container — still no third-party API.
+A self-hosted chat and coding assistant: **[Open WebUI](https://github.com/open-webui/open-webui)**
+in front of a **llama.cpp** model server, with model switching handled by
+[llama-swap](https://github.com/mostlygeek/llama-swap). Docker Compose,
+one command to start. Inference stays on hardware you control — no cloud
+LLM APIs. Web search is opt-in per message and goes through a self-hosted
+SearXNG container, not a third-party API.
 
-Tuned for an AMD RX 9070 XT (RDNA4, 16 GB) + Ryzen 7 5700X3D on Ubuntu
-24.04. Sibling project to `FencingManualTranslator`, but **fully independent at the
-setup level** — either can be deployed alone on a machine that has never
-seen the other.
+```
+ browser ──> Open WebUI ──> llama-swap ──> llama-server (ROCm / Vulkan / CPU)
+                 │              └─ one model resident at a time (chat | code)
+                 └──> SearXNG   (only when web search is toggled on)
+```
+
+**Three ways to run it** (set in `backend.env`):
+
+| Mode | Where inference runs |
+|---|---|
+| `local` | GPU in the container on this system |
+| `remote` | a llama-server on another LAN system (e.g. a gaming PC), Bearer-token auth |
+| `hybrid` | `remote`, plus an always-on CPU model here for when the GPU system is off |
+
+Optional image generation via a separate stable-diffusion.cpp backend is
+also supported (see [Image generation](#image-generation)).
+
+**Status:** a personal project, run daily and tested on one setup — AMD RX
+9070 XT (RDNA4, 16 GB) on Ubuntu 24.04, plus a Windows GPU host in `remote`
+mode. The container is wired for AMD GPUs (`/dev/kfd`, `/dev/dri`); other
+GPUs are untested. The chat/code models and paths are defaults you'd
+expect to change. Provided as-is; forks welcome.
+
+**Security:** intended for a trusted LAN. Open WebUI has accounts with
+signup closed by default, but the model endpoints use a placeholder key
+(`sk-local`) — don't expose ports 3000 or 11500 to the internet.
 
 ---
 
@@ -27,8 +48,7 @@ Ubuntu 24.04 **or newer**, kernel ≥ 6.12 (in-kernel `amdgpu` driver), the
 the image, which stays `FROM ubuntu:24.04` regardless of the host. Work
 through
 **[`docs/HOST_PREREQUISITES.md`](docs/HOST_PREREQUISITES.md)** once — it's
-`sudo apt` / kernel / BIOS steps on bare metal. Standalone, no dependency
-on FencingManualTranslator's copy.
+`sudo apt` / kernel / BIOS steps on bare metal.
 
 ### 2. Setup
 
@@ -41,8 +61,7 @@ bash scripts/setup.sh
 ```
 
 First build compiles llama.cpp three times (ROCm + Vulkan + a portable
-CPU build): 25–35 min, much faster if FencingManualTranslator's image is already
-built (shared layers).
+CPU build): 25–35 min.
 
 ### Alternative: remote / hybrid on a GPU-less host
 
@@ -241,21 +260,13 @@ CPU model, `chat-cpu`; in `remote` it isn't started — see
 WebUI calls only when a message has web search toggled on. `start.sh`
 brings it up with the rest of the stack (in `remote` mode too).
 
-## Relationship to FencingManualTranslator
+## Build notes
 
-Siblings, not a client/dependency pair. **Not shared:** base image,
-Dockerfile, compose, containers, code, host-prereqs doc. **Shared,
-safely:** the `ai-net` docker network name (a convention — `start.sh`
-creates it idempotently), the port-numbering convention (this project
-uses `11500`; `11501` is reserved, unused), and `~/llm_models` (a
-directory mount, not a repo dependency). Not meant to run at the same
-time — one GPU.
-
-The ROCm/Vulkan build stage in `docker/Dockerfile` is a synced copy of
-`BackendBuildstage/Dockerfile.buildstage`, kept between
-`# BUILDSTAGE START` / `# END` markers. Re-sync with
-`BackendBuildstage/sync_to_product.sh docker/Dockerfile` when it changes —
-it never touches the product-specific tail below the markers.
+The ROCm/Vulkan build stage in `docker/Dockerfile` is a vendored copy,
+kept between `# BUILDSTAGE START` / `# END` markers and synced in from
+outside this repo — edit the product tail below the markers, not the
+block. The repo is otherwise self-contained. The `ai-net` Docker network
+is created idempotently by `start.sh`.
 
 ## Docs
 
@@ -264,7 +275,6 @@ it never touches the product-specific tail below the markers.
 | `README.md` | this — install, use, configure |
 | [`docs/HOST_PREREQUISITES.md`](docs/HOST_PREREQUISITES.md) | bare-metal host setup for local mode — do this first (remote/hybrid need only §6) |
 | [`docs/remote-gpu.md`](docs/remote-gpu.md) | `backend.env`; local backend switching; remote + hybrid modes; remote-machine setup |
-| [`docs/STATUS.md`](docs/STATUS.md) | open items, decisions worth not re-litigating |
 | `CLAUDE.md` | orientation + hard invariants for AI coding agents |
 
-Session history: `git log` (HANDOFF.md was retired 2026-08-27).
+Session history: `git log`.

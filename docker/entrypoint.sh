@@ -3,8 +3,7 @@ set -euo pipefail
 
 # LocalAIChat model-server entrypoint.
 #
-# Unlike FencingManualTranslator (whose pipeline scripts own server lifecycle), this
-# project serves interactive chat through Open WebUI, so it needs a
+# This project serves interactive chat through Open WebUI, so it needs a
 # long-lived front door. That front door is llama-swap: one
 # OpenAI-compatible listener on $LISTEN_PORT that hot-swaps a single
 # resident llama-server between the configured models. Selecting a
@@ -84,7 +83,7 @@ if [ "$BACKEND_MODE" = "hybrid" ]; then
     LLAMA_SERVER_BIN=/usr/local/bin/llama-server-cpu
     if [ ! -x "$LLAMA_SERVER_BIN" ]; then
         echo "[FATAL] $LLAMA_SERVER_BIN missing -- this image predates the portable" >&2
-        echo "        CPU build (BackendBuildstage v2026.09.06). Rebuild the image:" >&2
+        echo "        CPU build (buildstage v2026.09.06). Rebuild the image:" >&2
         echo "        docker compose build" >&2
         exit 1
     fi
@@ -173,9 +172,7 @@ case "$LLAMA_BACKEND" in
     rocm714)
         echo "[FATAL] LLAMA_BACKEND=rocm714 is not built into this image." >&2
         echo "        The ROCm 7.14 llama.cpp build is parked (the preview wheel" >&2
-        echo "        ships no hip-lang-config.cmake). Build + smoke-test it in" >&2
-        echo "        BackendBuildstage first, then re-sync the buildstage here." >&2
-        echo "        See BackendBuildstage/ROCM714_NOTES.md." >&2
+        echo "        ships no hip-lang-config.cmake). Use vulkan or rocm7." >&2
         exit 1 ;;
     *)
         echo "[WARN] Unknown LLAMA_BACKEND='$LLAMA_BACKEND' -- defaulting to vulkan"
