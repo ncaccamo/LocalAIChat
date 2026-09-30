@@ -71,7 +71,7 @@ RUN $VULKAN_SDK/bin/glslc --version && \
 
 # [COMMON] Python + C/C++ build tooling (git, build-essential, libcurl)
 # shared by both llama.cpp builds and the rocm714 venv.
-# NOTE: this same layer also installs BookTranslator's OCR/PDF stack
+# NOTE: this same layer also installs FencingManualTranslator's OCR/PDF stack
 # (tesseract-ocr*, ghostscript, poppler-utils, unpaper). LocalAIChat
 # does not use those; a future COMMON-vs-product split would carve them
 # out of the shared buildstage.
@@ -83,7 +83,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git build-essential libcurl4-openssl-dev unpaper bc file \
     && rm -rf /var/lib/apt/lists/*
 
-# [COMMON/BookTranslator-only] Latin tessdata -- OCR use only.
+# [COMMON/FencingManualTranslator-only] Latin tessdata -- OCR use only.
 RUN mkdir -p /usr/share/tesseract-ocr/5/tessdata && \
     wget -q https://github.com/tesseract-ocr/tessdata/raw/main/lat.traineddata \
          -O /usr/share/tesseract-ocr/5/tessdata/lat.traineddata
